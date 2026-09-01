@@ -41,6 +41,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.SchoolInfo
 import com.example.data.model.StudentGradeEntity
+import com.example.data.model.formatScore
 import com.example.util.PdfExporter
 
 @Composable
@@ -170,33 +172,55 @@ fun AddEditStudentDialog(
     student: StudentGradeEntity?,
     schoolInfo: SchoolInfo,
     onDismiss: () -> Unit,
-    onSave: (id: Long, name: String, attendance: Double, homework: Double, oral: Double, written: Double) -> Unit
+    onSave: (id: Long, name: String, attendance: Double, homework: Double, oral: Double, written: Double, maxAtt: Double, maxHw: Double, maxOral: Double, maxWritten: Double) -> Unit
 ) {
     var name by remember { mutableStateOf(student?.studentName ?: "") }
-    var attendanceText by remember { mutableStateOf(student?.attendance?.toString() ?: "") }
-    var homeworkText by remember { mutableStateOf(student?.homework?.toString() ?: "") }
-    var oralText by remember { mutableStateOf(student?.oral?.toString() ?: "") }
-    var writtenText by remember { mutableStateOf(student?.written?.toString() ?: "") }
+
+    // Max limits inputs (الحدود القصوى / الماكسيمام)
+    var maxAttendanceText by remember { mutableStateOf(schoolInfo.maxAttendance.formatScore()) }
+    var maxHomeworkText by remember { mutableStateOf(schoolInfo.maxHomework.formatScore()) }
+    var maxOralText by remember { mutableStateOf(schoolInfo.maxOral.formatScore()) }
+    var maxWrittenText by remember { mutableStateOf(schoolInfo.maxWritten.formatScore()) }
+
+    val currentMaxAtt = maxAttendanceText.toDoubleOrNull() ?: 10.0
+    val currentMaxHw = maxHomeworkText.toDoubleOrNull() ?: 10.0
+    val currentMaxOral = maxOralText.toDoubleOrNull() ?: 10.0
+    val currentMaxWr = maxWrittenText.toDoubleOrNull() ?: 20.0
+    val calculatedSumMax = currentMaxAtt + currentMaxHw + currentMaxOral + currentMaxWr
+
+    var maxTotalText by remember { mutableStateOf(schoolInfo.maxTotalScore.formatScore()) }
+
+    // Keep maxTotal synced when sub-maxes change
+    LaunchedEffect(currentMaxAtt, currentMaxHw, currentMaxOral, currentMaxWr) {
+        maxTotalText = calculatedSumMax.formatScore()
+    }
+
+    // Student's actual grades
+    var attendanceText by remember { mutableStateOf(if (student != null) student.attendance.formatScore() else "") }
+    var homeworkText by remember { mutableStateOf(if (student != null) student.homework.formatScore() else "") }
+    var oralText by remember { mutableStateOf(if (student != null) student.oral.formatScore() else "") }
+    var writtenText by remember { mutableStateOf(if (student != null) student.written.formatScore() else "") }
 
     val att = attendanceText.toDoubleOrNull() ?: 0.0
     val hw = homeworkText.toDoubleOrNull() ?: 0.0
     val or = oralText.toDoubleOrNull() ?: 0.0
     val wr = writtenText.toDoubleOrNull() ?: 0.0
 
-    val attExceeds = att > schoolInfo.maxAttendance
-    val hwExceeds = hw > schoolInfo.maxHomework
-    val oralExceeds = or > schoolInfo.maxOral
-    val writtenExceeds = wr > schoolInfo.maxWritten
+    val attExceeds = att > currentMaxAtt
+    val hwExceeds = hw > currentMaxHw
+    val oralExceeds = or > currentMaxOral
+    val writtenExceeds = wr > currentMaxWr
 
-    val anyFieldExceeds = attExceeds || hwExceeds || oralExceeds || writtenExceeds
-
+    val maxTotal = maxTotalText.toDoubleOrNull() ?: calculatedSumMax
     val total = att + hw + or + wr
-    val max = schoolInfo.maxTotalScore
-    val pct = if (max > 0.0) Math.round(((total / max) * 100.0) * 100.0) / 100.0 else 0.0
+    val totalExceeds = total > maxTotal
+    val anyFieldExceeds = attExceeds || hwExceeds || oralExceeds || writtenExceeds || totalExceeds
+
+    val pct = if (maxTotal > 0.0) Math.round(((total / maxTotal) * 100.0) * 100.0) / 100.0 else 0.0
     val pctDisplay = String.format(java.util.Locale.US, "%.2f%%", pct)
 
     val evaluation = when {
-        anyFieldExceeds || total > max -> "تجاوز الحد الأقصى"
+        anyFieldExceeds -> "تجاوز الحد الأقصى"
         pct >= 90.0 -> "ممتاز"
         pct >= 80.0 -> "جيد جداً"
         pct >= 65.0 -> "جيد"
@@ -221,36 +245,147 @@ fun AddEditStudentDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // 1. Student Name
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("اسم الطالب الكامل") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().testTag("student_name_input")
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("student_name_input")
+                )
+
+                // 2. Maximum limits settings box (الحدود القصوى للدرجات)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFF8FAFC))
+                        .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
+                        .padding(10.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "🎯 تحديد الحد الأعلى للدرجات (الماكسيمام):",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.5.sp,
+                                color = Color(0xFF1E40AF)
+                            )
+                        }
+
+                        // Box 1: Total Max Score for the Subject
+                        OutlinedTextField(
+                            value = maxTotalText,
+                            onValueChange = { maxTotalText = it },
+                            label = { Text("إجمالي درجة المادة كاملاً (الماكسيمام)") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF1E40AF),
+                                unfocusedBorderColor = Color(0xFF94A3B8)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("max_total_input")
+                        )
+
+                        // Box 2 & 3: Attendance Max & Homework Max
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = maxAttendanceText,
+                                onValueChange = { maxAttendanceText = it },
+                                label = { Text("حد المواظبة") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("max_att_input")
+                            )
+                            OutlinedTextField(
+                                value = maxHomeworkText,
+                                onValueChange = { maxHomeworkText = it },
+                                label = { Text("حد الواجبات") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("max_hw_input")
+                            )
+                        }
+
+                        // Box 4 & 5: Oral Max & Written Max
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = maxOralText,
+                                onValueChange = { maxOralText = it },
+                                label = { Text("حد الشفوي") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("max_oral_input")
+                            )
+                            OutlinedTextField(
+                                value = maxWrittenText,
+                                onValueChange = { maxWrittenText = it },
+                                label = { Text("حد التحريري") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("max_written_input")
+                            )
+                        }
+                    }
+                }
+
+                // 3. Student's Actual Scores
+                Text(
+                    text = "📝 رصد درجات الطالب (وفقاً للحدود أعلاه):",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.5.sp,
+                    color = Color(0xFF334155),
+                    modifier = Modifier.padding(top = 2.dp)
                 )
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = attendanceText,
                         onValueChange = { attendanceText = it },
-                        label = { Text("المواظبة (${schoolInfo.maxAttendance})") },
+                        label = { Text("المواظبة (${currentMaxAtt.formatScore()})") },
                         isError = attExceeds,
                         supportingText = if (attExceeds) {
-                            { Text("الحد ${schoolInfo.maxAttendance}", color = Color.Red, fontSize = 10.sp) }
+                            { Text("الحد الأقصى ${currentMaxAtt.formatScore()}", color = Color.Red, fontSize = 10.sp) }
                         } else null,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f).testTag("att_input")
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("att_input")
                     )
                     OutlinedTextField(
                         value = homeworkText,
                         onValueChange = { homeworkText = it },
-                        label = { Text("الواجبات (${schoolInfo.maxHomework})") },
+                        label = { Text("الواجبات (${currentMaxHw.formatScore()})") },
                         isError = hwExceeds,
                         supportingText = if (hwExceeds) {
-                            { Text("الحد ${schoolInfo.maxHomework}", color = Color.Red, fontSize = 10.sp) }
+                            { Text("الحد الأقصى ${currentMaxHw.formatScore()}", color = Color.Red, fontSize = 10.sp) }
                         } else null,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f).testTag("hw_input")
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("hw_input")
                     )
                 }
 
@@ -258,28 +393,32 @@ fun AddEditStudentDialog(
                     OutlinedTextField(
                         value = oralText,
                         onValueChange = { oralText = it },
-                        label = { Text("الشفوي (${schoolInfo.maxOral})") },
+                        label = { Text("الشفوي (${currentMaxOral.formatScore()})") },
                         isError = oralExceeds,
                         supportingText = if (oralExceeds) {
-                            { Text("الحد ${schoolInfo.maxOral}", color = Color.Red, fontSize = 10.sp) }
+                            { Text("الحد الأقصى ${currentMaxOral.formatScore()}", color = Color.Red, fontSize = 10.sp) }
                         } else null,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f).testTag("oral_input")
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("oral_input")
                     )
                     OutlinedTextField(
                         value = writtenText,
                         onValueChange = { writtenText = it },
-                        label = { Text("التحريري (${schoolInfo.maxWritten})") },
+                        label = { Text("التحريري (${currentMaxWr.formatScore()})") },
                         isError = writtenExceeds,
                         supportingText = if (writtenExceeds) {
-                            { Text("الحد ${schoolInfo.maxWritten}", color = Color.Red, fontSize = 10.sp) }
+                            { Text("الحد الأقصى ${currentMaxWr.formatScore()}", color = Color.Red, fontSize = 10.sp) }
                         } else null,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f).testTag("written_input")
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("written_input")
                     )
                 }
 
-                // Dynamic calculation summary banner
+                // 4. Dynamic calculation summary banner (المجموع والنسبة المئوية والتقدير)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -299,7 +438,7 @@ fun AddEditStudentDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "المجموع: $total / $max",
+                                text = "المجموع: ${total.formatScore()} / ${maxTotal.formatScore()}",
                                 fontWeight = FontWeight.Bold,
                                 color = if (anyFieldExceeds) Color(0xFFDC2626) else Color(0xFF1D4ED8),
                                 fontSize = 14.sp
@@ -331,7 +470,11 @@ fun AddEditStudentDialog(
                             att,
                             hw,
                             or,
-                            wr
+                            wr,
+                            currentMaxAtt,
+                            currentMaxHw,
+                            currentMaxOral,
+                            currentMaxWr
                         )
                     }
                 },

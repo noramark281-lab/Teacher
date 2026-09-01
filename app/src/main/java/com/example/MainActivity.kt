@@ -135,8 +135,8 @@ fun MainAppContent(viewModel: GradeViewModel) {
         student = editingStudent,
         schoolInfo = schoolInfo,
         onDismiss = { viewModel.closeAddStudentDialog() },
-        onSave = { id, name, att, hw, oral, written ->
-          viewModel.saveStudent(id, name, att, hw, oral, written)
+        onSave = { id, name, att, hw, oral, written, maxAtt, maxHw, maxOral, maxWritten ->
+          viewModel.saveStudent(id, name, att, hw, oral, written, maxAtt, maxHw, maxOral, maxWritten)
         }
       )
     }

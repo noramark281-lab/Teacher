@@ -71,3 +71,11 @@ data class SchoolInfo(
     val maxTotalScore: Double
         get() = maxAttendance + maxHomework + maxOral + maxWritten
 }
+
+fun Double.formatScore(): String {
+    return if (this % 1.0 == 0.0) {
+        this.toInt().toString()
+    } else {
+        String.format(java.util.Locale.US, "%.1f", this)
+    }
+}

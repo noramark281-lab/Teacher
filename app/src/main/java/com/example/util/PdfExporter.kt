@@ -11,6 +11,7 @@ import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
 import com.example.data.model.SchoolInfo
 import com.example.data.model.StudentGradeEntity
+import com.example.data.model.formatScore
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -312,7 +313,7 @@ object PdfExporter {
             canvas.drawText("درجة المواظبة والحضور:", labelRightX, gradesY, paint)
             paint.textAlign = Paint.Align.LEFT
             paint.isFakeBoldText = true
-            canvas.drawText("${student.attendance} / ${schoolInfo.maxAttendance}", valueLeftX, gradesY, paint)
+            canvas.drawText("${student.attendance.formatScore()} / ${schoolInfo.maxAttendance.formatScore()}", valueLeftX, gradesY, paint)
 
             // 2. Homework
             paint.color = Color.parseColor("#1E293B")
@@ -321,7 +322,7 @@ object PdfExporter {
             canvas.drawText("درجة الواجبات المدرسية:", labelRightX, gradesY + 24f, paint)
             paint.textAlign = Paint.Align.LEFT
             paint.isFakeBoldText = true
-            canvas.drawText("${student.homework} / ${schoolInfo.maxHomework}", valueLeftX, gradesY + 24f, paint)
+            canvas.drawText("${student.homework.formatScore()} / ${schoolInfo.maxHomework.formatScore()}", valueLeftX, gradesY + 24f, paint)
 
             // 3. Oral
             paint.color = Color.parseColor("#1E293B")
@@ -330,7 +331,7 @@ object PdfExporter {
             canvas.drawText("درجة الاختبار الشفوي:", labelRightX, gradesY + 48f, paint)
             paint.textAlign = Paint.Align.LEFT
             paint.isFakeBoldText = true
-            canvas.drawText("${student.oral} / ${schoolInfo.maxOral}", valueLeftX, gradesY + 48f, paint)
+            canvas.drawText("${student.oral.formatScore()} / ${schoolInfo.maxOral.formatScore()}", valueLeftX, gradesY + 48f, paint)
 
             // 4. Written
             paint.color = Color.parseColor("#1E293B")
@@ -339,7 +340,7 @@ object PdfExporter {
             canvas.drawText("درجة الاختبار التحريري:", labelRightX, gradesY + 72f, paint)
             paint.textAlign = Paint.Align.LEFT
             paint.isFakeBoldText = true
-            canvas.drawText("${student.written} / ${schoolInfo.maxWritten}", valueLeftX, gradesY + 72f, paint)
+            canvas.drawText("${student.written.formatScore()} / ${schoolInfo.maxWritten.formatScore()}", valueLeftX, gradesY + 72f, paint)
 
             // Inner divider line
             paint.color = Color.parseColor("#BFDBFE")
@@ -354,7 +355,7 @@ object PdfExporter {
             paint.textAlign = Paint.Align.RIGHT
             canvas.drawText("المجموع الكلي:", labelRightX, gradesY + 116f, paint)
             paint.textAlign = Paint.Align.LEFT
-            canvas.drawText("$total / $maxTotal", valueLeftX, gradesY + 116f, paint)
+            canvas.drawText("${total.formatScore()} / ${maxTotal.formatScore()}", valueLeftX, gradesY + 116f, paint)
 
             // Percentage & Grade
             paint.color = Color.parseColor("#047857")

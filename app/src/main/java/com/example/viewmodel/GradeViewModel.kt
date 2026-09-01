@@ -198,9 +198,31 @@ class GradeViewModel(
         homework: Double,
         oral: Double,
         written: Double,
+        maxAtt: Double? = null,
+        maxHw: Double? = null,
+        maxOral: Double? = null,
+        maxWritten: Double? = null,
         order: Int? = null
     ) {
         viewModelScope.launch {
+            // If user updated max score boundaries in the dialog, persist them to schoolInfo
+            if (maxAtt != null && maxHw != null && maxOral != null && maxWritten != null) {
+                val currentInfo = schoolInfo.value
+                if (currentInfo.maxAttendance != maxAtt ||
+                    currentInfo.maxHomework != maxHw ||
+                    currentInfo.maxOral != maxOral ||
+                    currentInfo.maxWritten != maxWritten
+                ) {
+                    val updatedInfo = currentInfo.copy(
+                        maxAttendance = maxAtt,
+                        maxHomework = maxHw,
+                        maxOral = maxOral,
+                        maxWritten = maxWritten
+                    )
+                    repository.saveSchoolInfo(updatedInfo)
+                }
+            }
+
             val sem = if (_currentScreen.value == 2) 2 else 1
             val nextOrder = order ?: ((currentStudents.value.maxOfOrNull { it.studentOrder } ?: 0) + 1)
 

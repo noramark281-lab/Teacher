@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.SchoolInfo
 import com.example.data.model.StudentGradeEntity
+import com.example.data.model.formatScore
 
 @Composable
 fun GradeTable(
@@ -94,11 +95,11 @@ fun GradeTable(
             ) {
                 TableHeaderCell(text = "م", width = 36.dp)
                 TableHeaderCell(text = "اسم الطالب", width = 160.dp)
-                TableHeaderCell(text = "المواظبة\n(${schoolInfo.maxAttendance.toInt()})", width = 72.dp)
-                TableHeaderCell(text = "الواجبات\n(${schoolInfo.maxHomework.toInt()})", width = 72.dp)
-                TableHeaderCell(text = "الشفوي\n(${schoolInfo.maxOral.toInt()})", width = 72.dp)
-                TableHeaderCell(text = "التحريري\n(${schoolInfo.maxWritten.toInt()})", width = 74.dp)
-                TableHeaderCell(text = "المجموع\n(${maxTotal.toInt()})", width = 78.dp)
+                TableHeaderCell(text = "المواظبة\n(${schoolInfo.maxAttendance.formatScore()})", width = 72.dp)
+                TableHeaderCell(text = "الواجبات\n(${schoolInfo.maxHomework.formatScore()})", width = 72.dp)
+                TableHeaderCell(text = "الشفوي\n(${schoolInfo.maxOral.formatScore()})", width = 72.dp)
+                TableHeaderCell(text = "التحريري\n(${schoolInfo.maxWritten.formatScore()})", width = 74.dp)
+                TableHeaderCell(text = "المجموع\n(${maxTotal.formatScore()})", width = 78.dp)
                 TableHeaderCell(text = "نسبة %\nالتقدير", width = 84.dp)
                 TableHeaderCell(text = "إرسال / حفظ / خيارات", width = 180.dp)
             }
