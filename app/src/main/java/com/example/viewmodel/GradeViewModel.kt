@@ -73,6 +73,13 @@ class GradeViewModel(
     private val _editingStudent = MutableStateFlow<StudentGradeEntity?>(null)
     val editingStudent = _editingStudent.asStateFlow()
 
+    // Send to Phone / WhatsApp states
+    private val _sendingStudent = MutableStateFlow<StudentGradeEntity?>(null)
+    val sendingStudent = _sendingStudent.asStateFlow()
+
+    private val _showSendClassDialog = MutableStateFlow(false)
+    val showSendClassDialog = _showSendClassDialog.asStateFlow()
+
     init {
         viewModelScope.launch {
             repository.prePopulateIfEmpty()
@@ -158,6 +165,22 @@ class GradeViewModel(
     fun closeAddStudentDialog() {
         _editingStudent.value = null
         _showAddStudentDialog.value = false
+    }
+
+    fun openSendStudentDialog(student: StudentGradeEntity) {
+        _sendingStudent.value = student
+    }
+
+    fun closeSendStudentDialog() {
+        _sendingStudent.value = null
+    }
+
+    fun openSendClassDialog() {
+        _showSendClassDialog.value = true
+    }
+
+    fun closeSendClassDialog() {
+        _showSendClassDialog.value = false
     }
 
     fun updateSchoolInfo(info: SchoolInfo) {
@@ -355,6 +378,90 @@ class GradeViewModel(
                 PdfExporter.shareFile(context, file, "text/csv", "بيانات درجات ${student.studentName}")
                 _userMessage.emit("تم تصدير ملف Excel للطالب ${student.studentName}")
             }
+        }
+    }
+
+    fun sendSingleStudentReport(
+        context: Context,
+        student: StudentGradeEntity,
+        format: String,
+        phone: String,
+        messageText: String
+    ) {
+        viewModelScope.launch {
+            val sem = if (_currentScreen.value == 2) 2 else 1
+            val file = if (format == "PDF") {
+                PdfExporter.generateSingleStudentPdf(
+                    context = context,
+                    schoolInfo = schoolInfo.value,
+                    semester = sem,
+                    student = student
+                )
+            } else {
+                ExcelExporter.generateSingleStudentCsv(
+                    context = context,
+                    schoolInfo = schoolInfo.value,
+                    semester = sem,
+                    student = student
+                )
+            }
+            val mime = if (format == "PDF") "application/pdf" else "text/csv"
+            PdfExporter.shareToWhatsApp(
+                context = context,
+                file = file,
+                mimeType = mime,
+                phoneNumber = phone,
+                messageText = messageText
+            )
+            closeSendStudentDialog()
+            _userMessage.emit("جاري فتح واتساب لإرسال كشف الطالب ${student.studentName}")
+        }
+    }
+
+    fun sendClassSheetReport(
+        context: Context,
+        format: String,
+        phone: String,
+        messageText: String
+    ) {
+        viewModelScope.launch {
+            val sem = if (_currentScreen.value == 2) 2 else 1
+            val list = currentStudents.value
+            if (list.isEmpty()) {
+                _userMessage.emit("لا توجد بيانات طلاب لإرسالها")
+                return@launch
+            }
+            val file = if (format == "PDF") {
+                PdfExporter.generateClassSheetPdf(
+                    context = context,
+                    schoolInfo = schoolInfo.value,
+                    semester = sem,
+                    month = _selectedMonth.value,
+                    section = _selectedSection.value,
+                    subject = _selectedSubject.value,
+                    students = list
+                )
+            } else {
+                ExcelExporter.generateClassSheetCsv(
+                    context = context,
+                    schoolInfo = schoolInfo.value,
+                    semester = sem,
+                    month = _selectedMonth.value,
+                    section = _selectedSection.value,
+                    subject = _selectedSubject.value,
+                    students = list
+                )
+            }
+            val mime = if (format == "PDF") "application/pdf" else "text/csv"
+            PdfExporter.shareToWhatsApp(
+                context = context,
+                file = file,
+                mimeType = mime,
+                phoneNumber = phone,
+                messageText = messageText
+            )
+            closeSendClassDialog()
+            _userMessage.emit("جاري فتح واتساب لإرسال كشف الفصل الكامل")
         }
     }
 

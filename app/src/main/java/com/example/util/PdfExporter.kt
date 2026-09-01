@@ -143,6 +143,7 @@ object PdfExporter {
                 val total = student.totalScore
                 val pct = student.calculatePercentage(maxTotal)
                 val gradeSymbol = student.getGradeSymbol(maxTotal)
+                val pctDisplay = student.percentageDisplay(maxTotal)
 
                 val rowData = arrayOf(
                     "${student.studentOrder}",
@@ -152,7 +153,7 @@ object PdfExporter {
                     "${student.oral}",
                     "${student.written}",
                     "$total",
-                    "$pct%",
+                    pctDisplay,
                     gradeSymbol
                 )
 
@@ -278,52 +279,89 @@ object PdfExporter {
             y += 22f
             canvas.drawText("المادة: ${student.subject} | المعلم: ${schoolInfo.teacherName}", pageWidth - 30f, y, paint)
 
-            // Grades Box
-            y += 25f
+            // Grades Box (Centered inside card)
+            y += 24f
+            val boxLeft = 28f
+            val boxRight = pageWidth - 28f
+            val boxHeight = 180f
             paint.color = Color.parseColor("#EFF6FF")
             paint.style = Paint.Style.FILL
-            canvas.drawRoundRect(25f, y, pageWidth - 25f, y + 170f, 8f, 8f, paint)
+            canvas.drawRoundRect(boxLeft, y, boxRight, y + boxHeight, 10f, 10f, paint)
 
             paint.color = Color.parseColor("#93C5FD")
             paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 1f
-            canvas.drawRoundRect(25f, y, pageWidth - 25f, y + 170f, 8f, 8f, paint)
-
-            paint.style = Paint.Style.FILL
-            paint.color = Color.parseColor("#1E293B")
-            paint.textSize = 12f
-            paint.isFakeBoldText = false
+            paint.strokeWidth = 1.2f
+            canvas.drawRoundRect(boxLeft, y, boxRight, y + boxHeight, 10f, 10f, paint)
 
             val maxTotal = schoolInfo.maxTotalScore
             val total = student.totalScore
-            val pct = student.calculatePercentage(maxTotal)
+            val pctFormatted = student.percentageDisplay(maxTotal)
             val gradeSymbol = student.getGradeSymbol(maxTotal)
 
             val gradesY = y + 25f
-            canvas.drawText("درجة المواظبة والحضور:", pageWidth - 40f, gradesY, paint)
-            canvas.drawText("${student.attendance} / ${schoolInfo.maxAttendance}", 60f, gradesY, paint)
+            val labelRightX = boxRight - 16f
+            val valueLeftX = boxLeft + 16f
 
-            canvas.drawText("درجة الواجبات المدرسية:", pageWidth - 40f, gradesY + 25f, paint)
-            canvas.drawText("${student.homework} / ${schoolInfo.maxHomework}", 60f, gradesY + 25f, paint)
+            paint.style = Paint.Style.FILL
+            paint.textSize = 12f
 
-            canvas.drawText("درجة الاختبار الشفوي:", pageWidth - 40f, gradesY + 50f, paint)
-            canvas.drawText("${student.oral} / ${schoolInfo.maxOral}", 60f, gradesY + 50f, paint)
+            // 1. Attendance
+            paint.color = Color.parseColor("#1E293B")
+            paint.textAlign = Paint.Align.RIGHT
+            paint.isFakeBoldText = false
+            canvas.drawText("درجة المواظبة والحضور:", labelRightX, gradesY, paint)
+            paint.textAlign = Paint.Align.LEFT
+            paint.isFakeBoldText = true
+            canvas.drawText("${student.attendance} / ${schoolInfo.maxAttendance}", valueLeftX, gradesY, paint)
 
-            canvas.drawText("درجة الاختبار التحريري:", pageWidth - 40f, gradesY + 75f, paint)
-            canvas.drawText("${student.written} / ${schoolInfo.maxWritten}", 60f, gradesY + 75f, paint)
+            // 2. Homework
+            paint.color = Color.parseColor("#1E293B")
+            paint.textAlign = Paint.Align.RIGHT
+            paint.isFakeBoldText = false
+            canvas.drawText("درجة الواجبات المدرسية:", labelRightX, gradesY + 24f, paint)
+            paint.textAlign = Paint.Align.LEFT
+            paint.isFakeBoldText = true
+            canvas.drawText("${student.homework} / ${schoolInfo.maxHomework}", valueLeftX, gradesY + 24f, paint)
 
-            // Line
-            paint.color = Color.parseColor("#93C5FD")
-            canvas.drawLine(35f, gradesY + 95f, pageWidth - 35f, gradesY + 95f, paint)
+            // 3. Oral
+            paint.color = Color.parseColor("#1E293B")
+            paint.textAlign = Paint.Align.RIGHT
+            paint.isFakeBoldText = false
+            canvas.drawText("درجة الاختبار الشفوي:", labelRightX, gradesY + 48f, paint)
+            paint.textAlign = Paint.Align.LEFT
+            paint.isFakeBoldText = true
+            canvas.drawText("${student.oral} / ${schoolInfo.maxOral}", valueLeftX, gradesY + 48f, paint)
 
-            // Total and %
+            // 4. Written
+            paint.color = Color.parseColor("#1E293B")
+            paint.textAlign = Paint.Align.RIGHT
+            paint.isFakeBoldText = false
+            canvas.drawText("درجة الاختبار التحريري:", labelRightX, gradesY + 72f, paint)
+            paint.textAlign = Paint.Align.LEFT
+            paint.isFakeBoldText = true
+            canvas.drawText("${student.written} / ${schoolInfo.maxWritten}", valueLeftX, gradesY + 72f, paint)
+
+            // Inner divider line
+            paint.color = Color.parseColor("#BFDBFE")
+            paint.strokeWidth = 1f
+            canvas.drawLine(boxLeft + 12f, gradesY + 92f, boxRight - 12f, gradesY + 92f, paint)
+
+            // Total Score
+            paint.style = Paint.Style.FILL
             paint.color = Color.parseColor("#1D4ED8")
             paint.isFakeBoldText = true
-            paint.textSize = 13f
-            canvas.drawText("المجموع الكلي: $total / $maxTotal", pageWidth - 40f, gradesY + 120f, paint)
+            paint.textSize = 12.5f
+            paint.textAlign = Paint.Align.RIGHT
+            canvas.drawText("المجموع الكلي:", labelRightX, gradesY + 116f, paint)
+            paint.textAlign = Paint.Align.LEFT
+            canvas.drawText("$total / $maxTotal", valueLeftX, gradesY + 116f, paint)
 
+            // Percentage & Grade
             paint.color = Color.parseColor("#047857")
-            canvas.drawText("النسبة المئوية: $pct% ($gradeSymbol)", pageWidth - 40f, gradesY + 145f, paint)
+            paint.textAlign = Paint.Align.RIGHT
+            canvas.drawText("النسبة والتقدير:", labelRightX, gradesY + 142f, paint)
+            paint.textAlign = Paint.Align.LEFT
+            canvas.drawText("$pctFormatted ($gradeSymbol)", valueLeftX, gradesY + 142f, paint)
 
             // Footer
             val dateStr = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()).format(Date())
@@ -362,10 +400,145 @@ object PdfExporter {
                 putExtra(Intent.EXTRA_STREAM, uri)
                 putExtra(Intent.EXTRA_SUBJECT, title)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            context.startActivity(Intent.createChooser(intent, title))
+            context.startActivity(Intent.createChooser(intent, title).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    fun buildMotivationalMessage(
+        schoolInfo: SchoolInfo,
+        semester: Int,
+        student: StudentGradeEntity
+    ): String {
+        val semText = if (semester == 1) "الفصل الأول" else "الفصل الثاني"
+        val maxTotal = schoolInfo.maxTotalScore
+        val pct = student.calculatePercentage(maxTotal)
+        val pctFormatted = student.percentageDisplay(maxTotal)
+        val gradeSymbol = student.getGradeSymbol(maxTotal)
+
+        val header = when {
+            pct >= 90.0 -> "🌟 رسالة فخر وتفوق واعتزاز 🌟"
+            pct >= 75.0 -> "👏 رسالة شكر وتقدير وثناء 👏"
+            pct >= 50.0 -> "🌱 رسالة تشجيع ومتابعة مستمرة 🌱"
+            else -> "📚 إشعار متابعة دراسية ودعم للهمة 📚"
+        }
+
+        val body = when {
+            pct >= 90.0 -> "السلام عليكم ورحمة الله وبركاته،\nيسر إدارة ${schoolInfo.schoolName} ومعلم المادة أ. ${schoolInfo.teacherName} أن نزف إليكم أطيب التهاني بمناسبة حصول الطالب المتميز:\n👑 *${student.studentName}*\nعلى نسبة: *${pctFormatted}* (التقدير: *${gradeSymbol}*) في مادة *${student.subject}* لشهر *${student.month}* ($semText).\n\nبارك الله في جهوده ونتمنى له دوام التألق والنجاح في مسيرته العلمية! 🎓✨"
+            pct >= 75.0 -> "السلام عليكم ورحمة الله وبركاته،\nتحية تقدير واعتزاز لولي أمر الطالب المجد:\n✨ *${student.studentName}*\nنفيدكم بحصوله على مجموع: *${student.totalScore} من ${maxTotal}* بنسبة *${pctFormatted}* (التقدير: *${gradeSymbol}*) في مادة *${student.subject}* لشهر *${student.month}*.\n\nشاكرين حرصكم ومتابعتكم ونتطلع لمزيد من التميز والإبداع! 🌿"
+            pct >= 50.0 -> "السلام عليكم ورحمة الله وبركاته،\nتحية طيبة لولي أمر الطالب:\n📖 *${student.studentName}*\nنرفق لكم كشف درجات أعمال السنة لشهر *${student.month}* بمادة *${student.subject}* حيث حقق مجموع *${student.totalScore} من ${maxTotal}* (${pctFormatted}).\n\nنحث الطالب على مضاعفة الجهد والمثابرة لتحقيق أعلى المراتب بإذن الله. 🌟"
+            else -> "السلام عليكم ورحمة الله وبركاته،\nتحية طيبة لولي أمر الطالب:\n📝 *${student.studentName}*\nنرفق لكم كشف درجات أعمال السنة لشهر *${student.month}* بمادة *${student.subject}* (المجموع: *${student.totalScore} من ${maxTotal}*).\n\nنأمل منكم التكرم بتكثيف المتابعة المنزلية وتشجيع الطالب لتدارك الدرجات والارتقاء بالمستوى في الشهر القادم بإذن الله. 🤝"
+        }
+
+        return "$header\n\n$body\n\n📄 مرفق بطاقة الدرجات التفصيلية."
+    }
+
+    fun buildOfficialClassMessage(
+        schoolInfo: SchoolInfo,
+        semester: Int,
+        month: String,
+        section: String,
+        subject: String,
+        studentsCount: Int,
+        recipientRole: String = "مدير المدرسة"
+    ): String {
+        val semText = if (semester == 1) "الفصل الأول" else "الفصل الثاني"
+        return "🏫 *كشف درجات أعمال السنة - $semText* 🏫\n\n" +
+                "السلام عليكم ورحمة الله وبركاته،\n" +
+                "سعادة ${recipientRole} المحترم،\n\n" +
+                "نرفع لكم كشف درجات أعمال السنة الرسمي:\n" +
+                "📌 *المدرسة:* ${schoolInfo.schoolName}\n" +
+                "📌 *الصف / الشعبة:* ${schoolInfo.gradeLevels} (شعبة $section)\n" +
+                "📌 *المادة:* $subject\n" +
+                "📌 *الشهر:* $month\n" +
+                "📌 *إجمالي الطلاب المسجلين:* $studentsCount طالب\n" +
+                "📌 *المعلم المعتمد:* أ. ${schoolInfo.teacherName}\n\n" +
+                "📎 مرفق ملف الكشف التفصيلي للدرجات والنسب المئوية.\n" +
+                "مع فائق الشكر والتقدير والاحترام. 📊✨"
+    }
+
+    fun shareToWhatsApp(
+        context: Context,
+        file: File?,
+        mimeType: String,
+        phoneNumber: String,
+        messageText: String
+    ) {
+        var cleanPhone = phoneNumber.replace(Regex("[^0-9]"), "")
+        // If user entered e.g. 05... in KSA/Yemen or 7..., we keep as is or let whatsapp handle
+        // If starts with 00, convert to no leading 00
+        if (cleanPhone.startsWith("00")) {
+            cleanPhone = cleanPhone.removePrefix("00")
+        }
+
+        val fileUri = if (file != null) {
+            FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+        } else null
+
+        // Try direct WhatsApp Intent with target JID
+        var launched = false
+        val whatsappPackages = listOf("com.whatsapp", "com.whatsapp.w4b")
+
+        for (pkg in whatsappPackages) {
+            try {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = mimeType
+                    if (fileUri != null) {
+                        putExtra(Intent.EXTRA_STREAM, fileUri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    putExtra(Intent.EXTRA_TEXT, messageText)
+                    if (cleanPhone.isNotBlank()) {
+                        putExtra("jid", "$cleanPhone@s.whatsapp.net")
+                    }
+                    setPackage(pkg)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+                launched = true
+                break
+            } catch (e: Exception) {
+                // Try next
+            }
+        }
+
+        // If direct package failed, try ACTION_VIEW or generic SEND chooser
+        if (!launched) {
+            try {
+                if (cleanPhone.isNotBlank() && fileUri == null) {
+                    val url = "https://api.whatsapp.com/send?phone=$cleanPhone&text=" +
+                            java.net.URLEncoder.encode(messageText, "UTF-8")
+                    val browserIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(browserIntent)
+                } else {
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = mimeType
+                        if (fileUri != null) {
+                            putExtra(Intent.EXTRA_STREAM, fileUri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        putExtra(Intent.EXTRA_TEXT, messageText)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    val chooser = Intent.createChooser(shareIntent, "إرسال الكشف إلى: $phoneNumber").apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(chooser)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 }

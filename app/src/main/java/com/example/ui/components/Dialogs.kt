@@ -2,6 +2,8 @@ package com.example.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,15 +12,25 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -45,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.SchoolInfo
 import com.example.data.model.StudentGradeEntity
+import com.example.util.PdfExporter
 
 @Composable
 fun EditSchoolInfoDialog(
@@ -170,9 +183,26 @@ fun AddEditStudentDialog(
     val or = oralText.toDoubleOrNull() ?: 0.0
     val wr = writtenText.toDoubleOrNull() ?: 0.0
 
+    val attExceeds = att > schoolInfo.maxAttendance
+    val hwExceeds = hw > schoolInfo.maxHomework
+    val oralExceeds = or > schoolInfo.maxOral
+    val writtenExceeds = wr > schoolInfo.maxWritten
+
+    val anyFieldExceeds = attExceeds || hwExceeds || oralExceeds || writtenExceeds
+
     val total = att + hw + or + wr
     val max = schoolInfo.maxTotalScore
-    val pct = if (max > 0) ((total / max) * 1000).toInt() / 10.0 else 0.0
+    val pct = if (max > 0.0) Math.round(((total / max) * 100.0) * 100.0) / 100.0 else 0.0
+    val pctDisplay = String.format(java.util.Locale.US, "%.2f%%", pct)
+
+    val evaluation = when {
+        anyFieldExceeds || total > max -> "تجاوز الحد الأقصى"
+        pct >= 90.0 -> "ممتاز"
+        pct >= 80.0 -> "جيد جداً"
+        pct >= 65.0 -> "جيد"
+        pct >= 50.0 -> "مقبول"
+        else -> "ضعيف"
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -204,6 +234,10 @@ fun AddEditStudentDialog(
                         value = attendanceText,
                         onValueChange = { attendanceText = it },
                         label = { Text("المواظبة (${schoolInfo.maxAttendance})") },
+                        isError = attExceeds,
+                        supportingText = if (attExceeds) {
+                            { Text("الحد ${schoolInfo.maxAttendance}", color = Color.Red, fontSize = 10.sp) }
+                        } else null,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f).testTag("att_input")
                     )
@@ -211,6 +245,10 @@ fun AddEditStudentDialog(
                         value = homeworkText,
                         onValueChange = { homeworkText = it },
                         label = { Text("الواجبات (${schoolInfo.maxHomework})") },
+                        isError = hwExceeds,
+                        supportingText = if (hwExceeds) {
+                            { Text("الحد ${schoolInfo.maxHomework}", color = Color.Red, fontSize = 10.sp) }
+                        } else null,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f).testTag("hw_input")
                     )
@@ -221,6 +259,10 @@ fun AddEditStudentDialog(
                         value = oralText,
                         onValueChange = { oralText = it },
                         label = { Text("الشفوي (${schoolInfo.maxOral})") },
+                        isError = oralExceeds,
+                        supportingText = if (oralExceeds) {
+                            { Text("الحد ${schoolInfo.maxOral}", color = Color.Red, fontSize = 10.sp) }
+                        } else null,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f).testTag("oral_input")
                     )
@@ -228,6 +270,10 @@ fun AddEditStudentDialog(
                         value = writtenText,
                         onValueChange = { writtenText = it },
                         label = { Text("التحريري (${schoolInfo.maxWritten})") },
+                        isError = writtenExceeds,
+                        supportingText = if (writtenExceeds) {
+                            { Text("الحد ${schoolInfo.maxWritten}", color = Color.Red, fontSize = 10.sp) }
+                        } else null,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f).testTag("written_input")
                     )
@@ -238,26 +284,38 @@ fun AddEditStudentDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFEFF6FF))
-                        .border(1.dp, Color(0xFFBFDBFE), RoundedCornerShape(8.dp))
+                        .background(if (anyFieldExceeds) Color(0xFFFEF2F2) else Color(0xFFEFF6FF))
+                        .border(
+                            1.dp,
+                            if (anyFieldExceeds) Color(0xFFFECACA) else Color(0xFFBFDBFE),
+                            RoundedCornerShape(8.dp)
+                        )
                         .padding(12.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "المجموع: $total / $max",
+                                fontWeight = FontWeight.Bold,
+                                color = if (anyFieldExceeds) Color(0xFFDC2626) else Color(0xFF1D4ED8),
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = "النسبة: $pctDisplay",
+                                fontWeight = FontWeight.Bold,
+                                color = if (anyFieldExceeds) Color(0xFFDC2626) else Color(0xFF047857),
+                                fontSize = 14.sp
+                            )
+                        }
                         Text(
-                            text = "المجموع: $total / $max",
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1D4ED8),
-                            fontSize = 14.sp
-                        )
-                        Text(
-                            text = "النسبة: $pct%",
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF047857),
-                            fontSize = 14.sp
+                            text = "التقدير: $evaluation",
+                            fontWeight = FontWeight.Medium,
+                            color = if (anyFieldExceeds) Color(0xFFDC2626) else Color(0xFF475569),
+                            fontSize = 12.sp
                         )
                     }
                 }
@@ -597,6 +655,569 @@ fun NewMonthDialog(
         dismissButton = {
             OutlinedButton(onClick = onDismiss) {
                 Text("إلغاء")
+            }
+        }
+    )
+}
+
+@Composable
+fun SendStudentReportDialog(
+    student: StudentGradeEntity,
+    schoolInfo: SchoolInfo,
+    semester: Int,
+    onDismiss: () -> Unit,
+    onSend: (format: String, phone: String, messageText: String) -> Unit,
+    onShareGeneral: (format: String) -> Unit
+) {
+    val maxTotal = schoolInfo.maxTotalScore
+    val total = student.totalScore
+    val pctDisplay = student.percentageDisplay(maxTotal)
+    val gradeSymbol = student.getGradeSymbol(maxTotal)
+
+    var selectedFormat by remember { mutableStateOf("PDF") } // "PDF" or "EXCEL"
+    var phoneNumber by remember { mutableStateOf("") }
+
+    val defaultMotivationalMsg = remember(student, schoolInfo, semester) {
+        PdfExporter.buildMotivationalMessage(schoolInfo, semester, student)
+    }
+
+    val defaultBriefMsg = remember(student, schoolInfo, semester) {
+        "كشف درجات الطالب: ${student.studentName} | المجموع: $total من $maxTotal ($pctDisplay - $gradeSymbol) | مادة: ${student.subject} | مدرسة: ${schoolInfo.schoolName}"
+    }
+
+    var isMotivationalMode by remember { mutableStateOf(true) }
+    var customMessage by remember(isMotivationalMode) {
+        mutableStateOf(if (isMotivationalMode) defaultMotivationalMsg else defaultBriefMsg)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Send,
+                    contentDescription = null,
+                    tint = Color(0xFF16A34A),
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "إرسال كشف الطالب إلى رقم هاتف",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        color = Color(0xFF0F172A)
+                    )
+                    Text(
+                        text = student.studentName,
+                        fontSize = 13.sp,
+                        color = Color(0xFF2563EB),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Grade Summary Chip
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFF1F5F9))
+                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                        .padding(10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "المجموع: $total / $maxTotal",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = Color(0xFF1E40AF)
+                    )
+                    Text(
+                        text = "النسبة: $pctDisplay ($gradeSymbol)",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = Color(0xFF16A34A)
+                    )
+                }
+
+                // 1. Choose Format (PDF / Excel)
+                Text(
+                    text = "١. اختر صيغة الملف المرفق:",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = Color(0xFF334155)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // PDF Option
+                    val isPdf = selectedFormat == "PDF"
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isPdf) Color(0xFFEFF6FF) else Color.White)
+                            .border(
+                                1.5.dp,
+                                if (isPdf) Color(0xFF2563EB) else Color(0xFFCBD5E1),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .clickable { selectedFormat = "PDF" }
+                            .padding(vertical = 8.dp, horizontal = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.PictureAsPdf,
+                                contentDescription = null,
+                                tint = if (isPdf) Color(0xFF2563EB) else Color(0xFF64748B),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "ملف PDF (بطاقة)",
+                                fontSize = 12.sp,
+                                fontWeight = if (isPdf) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isPdf) Color(0xFF1D4ED8) else Color(0xFF475569)
+                            )
+                        }
+                    }
+
+                    // Excel Option
+                    val isExcel = selectedFormat == "EXCEL"
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isExcel) Color(0xFFF0FDF4) else Color.White)
+                            .border(
+                                1.5.dp,
+                                if (isExcel) Color(0xFF16A34A) else Color(0xFFCBD5E1),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .clickable { selectedFormat = "EXCEL" }
+                            .padding(vertical = 8.dp, horizontal = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.TableChart,
+                                contentDescription = null,
+                                tint = if (isExcel) Color(0xFF16A34A) else Color(0xFF64748B),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "ملف Excel (جدول)",
+                                fontSize = 12.sp,
+                                fontWeight = if (isExcel) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isExcel) Color(0xFF15803D) else Color(0xFF475569)
+                            )
+                        }
+                    }
+                }
+
+                // 2. Phone Number Input
+                Text(
+                    text = "٢. رقم هاتف المستلم (واتساب):",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = Color(0xFF334155)
+                )
+                OutlinedTextField(
+                    value = phoneNumber,
+                    onValueChange = { phoneNumber = it },
+                    placeholder = { Text("مثال: 967771234567 أو 0551234567") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Phone, contentDescription = null, tint = Color(0xFF16A34A))
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    singleLine = true,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("send_student_phone_input")
+                )
+
+                // 3. Motivational / Encouraging Message Option
+                Text(
+                    text = "٣. نص الرسالة والعبارة التحفيزية:",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = Color(0xFF334155)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Option 1: Motivational
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isMotivationalMode) Color(0xFFFEF3C7) else Color(0xFFF1F5F9))
+                            .border(
+                                1.dp,
+                                if (isMotivationalMode) Color(0xFFD97706) else Color(0xFFCBD5E1),
+                                RoundedCornerShape(6.dp)
+                            )
+                            .clickable {
+                                isMotivationalMode = true
+                                customMessage = defaultMotivationalMsg
+                            }
+                            .padding(vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = if (isMotivationalMode) Color(0xFFB45309) else Color(0xFF64748B),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "رسالة تحفيز لولي الأمر",
+                                fontSize = 11.sp,
+                                fontWeight = if (isMotivationalMode) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isMotivationalMode) Color(0xFF92400E) else Color(0xFF475569)
+                            )
+                        }
+                    }
+
+                    // Option 2: Brief
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (!isMotivationalMode) Color(0xFFEFF6FF) else Color(0xFFF1F5F9))
+                            .border(
+                                1.dp,
+                                if (!isMotivationalMode) Color(0xFF2563EB) else Color(0xFFCBD5E1),
+                                RoundedCornerShape(6.dp)
+                            )
+                            .clickable {
+                                isMotivationalMode = false
+                                customMessage = defaultBriefMsg
+                            }
+                            .padding(vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "إشعار درجات رسمي",
+                            fontSize = 11.sp,
+                            fontWeight = if (!isMotivationalMode) FontWeight.Bold else FontWeight.Normal,
+                            color = if (!isMotivationalMode) Color(0xFF1D4ED8) else Color(0xFF475569)
+                        )
+                    }
+                }
+
+                OutlinedTextField(
+                    value = customMessage,
+                    onValueChange = { customMessage = it },
+                    label = { Text("معاينة وتعديل نص الرسالة المرفقة") },
+                    maxLines = 6,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().height(120.dp).testTag("send_student_message_input")
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSend(selectedFormat, phoneNumber, customMessage)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.testTag("btn_send_whatsapp_student")
+            ) {
+                Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("إرسال عبر واتساب 📲", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                OutlinedButton(
+                    onClick = { onShareGeneral(selectedFormat) },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("مشاركة عامة")
+                }
+                OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(8.dp)) {
+                    Text("إلغاء")
+                }
+            }
+        }
+    )
+}
+
+@Composable
+fun SendClassSheetDialog(
+    schoolInfo: SchoolInfo,
+    semester: Int,
+    month: String,
+    section: String,
+    subject: String,
+    studentsCount: Int,
+    onDismiss: () -> Unit,
+    onSend: (format: String, phone: String, messageText: String) -> Unit,
+    onShareGeneral: (format: String) -> Unit
+) {
+    var selectedFormat by remember { mutableStateOf("PDF") } // "PDF" or "EXCEL"
+    var phoneNumber by remember { mutableStateOf("") }
+    var recipientRole by remember { mutableStateOf("مدير المدرسة") }
+
+    val rolesList = listOf("مدير المدرسة", "وكيل المدرسة", "الموجه التربوي", "مسؤول الطباعة", "معلم المادة")
+
+    val defaultMessage = remember(schoolInfo, semester, month, section, subject, studentsCount, recipientRole) {
+        PdfExporter.buildOfficialClassMessage(
+            schoolInfo = schoolInfo,
+            semester = semester,
+            month = month,
+            section = section,
+            subject = subject,
+            studentsCount = studentsCount,
+            recipientRole = recipientRole
+        )
+    }
+
+    var customMessage by remember(recipientRole) {
+        mutableStateOf(defaultMessage)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.School,
+                    contentDescription = null,
+                    tint = Color(0xFF1E40AF),
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "إرسال كشف الفصل الكامل",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        color = Color(0xFF0F172A)
+                    )
+                    Text(
+                        text = "$subject | الصف: ${schoolInfo.gradeLevels} (شعبة $section) | $month",
+                        fontSize = 12.sp,
+                        color = Color(0xFF64748B)
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // 1. Recipient Role Selector
+                Text(
+                    text = "١. لمن تريد إرسال الكشف؟",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = Color(0xFF334155)
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    rolesList.forEach { role ->
+                        val isSelected = role == recipientRole
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(if (isSelected) Color(0xFF1E40AF) else Color(0xFFF1F5F9))
+                                .border(
+                                    1.dp,
+                                    if (isSelected) Color(0xFF1E40AF) else Color(0xFFCBD5E1),
+                                    RoundedCornerShape(16.dp)
+                                )
+                                .clickable {
+                                    recipientRole = role
+                                    customMessage = PdfExporter.buildOfficialClassMessage(
+                                        schoolInfo = schoolInfo,
+                                        semester = semester,
+                                        month = month,
+                                        section = section,
+                                        subject = subject,
+                                        studentsCount = studentsCount,
+                                        recipientRole = role
+                                    )
+                                }
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = role,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) Color.White else Color(0xFF334155)
+                            )
+                        }
+                    }
+                }
+
+                // 2. Choose Format (PDF / Excel)
+                Text(
+                    text = "٢. صيغة الملف المرفق:",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = Color(0xFF334155)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val isPdf = selectedFormat == "PDF"
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isPdf) Color(0xFFEFF6FF) else Color.White)
+                            .border(
+                                1.5.dp,
+                                if (isPdf) Color(0xFF2563EB) else Color(0xFFCBD5E1),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .clickable { selectedFormat = "PDF" }
+                            .padding(vertical = 8.dp, horizontal = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.PictureAsPdf,
+                                contentDescription = null,
+                                tint = if (isPdf) Color(0xFF2563EB) else Color(0xFF64748B),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "ملف PDF (للطباعة)",
+                                fontSize = 12.sp,
+                                fontWeight = if (isPdf) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isPdf) Color(0xFF1D4ED8) else Color(0xFF475569)
+                            )
+                        }
+                    }
+
+                    val isExcel = selectedFormat == "EXCEL"
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isExcel) Color(0xFFF0FDF4) else Color.White)
+                            .border(
+                                1.5.dp,
+                                if (isExcel) Color(0xFF16A34A) else Color(0xFFCBD5E1),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .clickable { selectedFormat = "EXCEL" }
+                            .padding(vertical = 8.dp, horizontal = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.TableChart,
+                                contentDescription = null,
+                                tint = if (isExcel) Color(0xFF16A34A) else Color(0xFF64748B),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "ملف Excel (جدول)",
+                                fontSize = 12.sp,
+                                fontWeight = if (isExcel) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isExcel) Color(0xFF15803D) else Color(0xFF475569)
+                            )
+                        }
+                    }
+                }
+
+                // 3. Phone Number Input
+                Text(
+                    text = "٣. رقم هاتف المستلم (واتساب):",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = Color(0xFF334155)
+                )
+                OutlinedTextField(
+                    value = phoneNumber,
+                    onValueChange = { phoneNumber = it },
+                    placeholder = { Text("أدخل رقم هاتف $recipientRole...") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Phone, contentDescription = null, tint = Color(0xFF16A34A))
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    singleLine = true,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("send_class_phone_input")
+                )
+
+                // 4. Message Preview
+                Text(
+                    text = "٤. نص الرسالة المرفقة مع الكشف:",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = Color(0xFF334155)
+                )
+                OutlinedTextField(
+                    value = customMessage,
+                    onValueChange = { customMessage = it },
+                    label = { Text("نص الخطاب الرسمي المرفق") },
+                    maxLines = 6,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().height(120.dp).testTag("send_class_message_input")
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSend(selectedFormat, phoneNumber, customMessage)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.testTag("btn_send_whatsapp_class")
+            ) {
+                Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("إرسال الكشف لواتساب 📲", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                OutlinedButton(
+                    onClick = { onShareGeneral(selectedFormat) },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("مشاركة عامة")
+                }
+                OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(8.dp)) {
+                    Text("إلغاء")
+                }
             }
         }
     )

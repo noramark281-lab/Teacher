@@ -29,8 +29,10 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LockClock
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -342,6 +344,9 @@ fun SemesterGradeScreen(
                     onStudentClick = { student ->
                         viewModel.openAddStudentDialog(student)
                     },
+                    onSendStudentReport = { student ->
+                        viewModel.openSendStudentDialog(student)
+                    },
                     onSaveStudentPdf = { student ->
                         viewModel.exportSingleStudentPdf(context, student)
                     },
@@ -361,7 +366,7 @@ fun SemesterGradeScreen(
                 val totalStudents = filteredStudents.size
                 val avgScore = if (totalStudents > 0) {
                     val sum = filteredStudents.sumOf { it.totalScore }
-                    ((sum / totalStudents) * 10).toInt() / 10.0
+                    Math.round((sum / totalStudents) * 100.0) / 100.0
                 } else 0.0
                 val topScore = filteredStudents.maxOfOrNull { it.totalScore } ?: 0.0
                 val passingCount = filteredStudents.count {
@@ -369,8 +374,9 @@ fun SemesterGradeScreen(
                     pct >= 50.0
                 }
                 val passRate = if (totalStudents > 0) {
-                    ((passingCount.toDouble() / totalStudents) * 1000).toInt() / 10.0
+                    Math.round(((passingCount.toDouble() / totalStudents) * 100.0) * 100.0) / 100.0
                 } else 0.0
+                val passRateDisplay = String.format(java.util.Locale.US, "%.2f%%", passRate)
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -393,9 +399,23 @@ fun SemesterGradeScreen(
                             StatItem(label = "إجمالي الطلاب", value = "$totalStudents")
                             StatItem(label = "المتوسط العام", value = "$avgScore / $maxTotal")
                             StatItem(label = "أعلى مجموع", value = "$topScore")
-                            StatItem(label = "نسبة النجاح", value = "$passRate%")
+                            StatItem(label = "نسبة النجاح", value = passRateDisplay)
                         }
                     }
+                }
+
+                // WhatsApp Send Class Button (Full feature for المدير / المعلمين / الطباعة)
+                Button(
+                    onClick = { viewModel.openSendClassDialog() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("send_class_whatsapp_btn")
+                ) {
+                    Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("إرسال الكشف إلى رقم هاتف (واتساب للمدير / المعلم / الطباعة)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
 
                 // Bottom Export Buttons
@@ -416,7 +436,7 @@ fun SemesterGradeScreen(
 
                     Button(
                         onClick = { viewModel.exportClassExcel(context) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488)),
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.weight(1f).testTag("bottom_excel_export_btn")
                     ) {

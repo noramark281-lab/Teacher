@@ -23,15 +23,30 @@ data class StudentGradeEntity(
     val totalScore: Double
         get() = attendance + homework + oral + written
 
+    fun normalizedScore(maxTotal: Double): Double {
+        if (maxTotal <= 0.0) return 0.0
+        val norm = totalScore / maxTotal
+        return when {
+            norm < 0.0 -> 0.0
+            norm > 1.0 -> 1.0
+            else -> Math.round(norm * 10000.0) / 10000.0
+        }
+    }
+
     fun calculatePercentage(maxTotal: Double): Double {
-        if (maxTotal <= 0) return 0.0
+        if (maxTotal <= 0.0) return 0.0
         val p = (totalScore / maxTotal) * 100.0
-        return (p * 10).toInt() / 10.0 // 1 decimal place
+        return Math.round(p * 100.0) / 100.0 // 2 decimal places precision
+    }
+
+    fun percentageDisplay(maxTotal: Double): String {
+        return String.format(java.util.Locale.US, "%.2f%%", calculatePercentage(maxTotal))
     }
 
     fun getGradeSymbol(maxTotal: Double): String {
         val pct = calculatePercentage(maxTotal)
         return when {
+            pct > 100.0 -> "تجاوز الحد"
             pct >= 90.0 -> "ممتاز"
             pct >= 80.0 -> "جيد جداً"
             pct >= 65.0 -> "جيد"

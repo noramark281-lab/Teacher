@@ -24,7 +24,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -53,6 +55,7 @@ fun GradeTable(
     students: List<StudentGradeEntity>,
     schoolInfo: SchoolInfo,
     onStudentClick: (StudentGradeEntity) -> Unit,
+    onSendStudentReport: (StudentGradeEntity) -> Unit,
     onSaveStudentPdf: (StudentGradeEntity) -> Unit,
     onSaveStudentExcel: (StudentGradeEntity) -> Unit,
     onClearScores: (StudentGradeEntity) -> Unit,
@@ -97,7 +100,7 @@ fun GradeTable(
                 TableHeaderCell(text = "التحريري\n(${schoolInfo.maxWritten.toInt()})", width = 74.dp)
                 TableHeaderCell(text = "المجموع\n(${maxTotal.toInt()})", width = 78.dp)
                 TableHeaderCell(text = "نسبة %\nالتقدير", width = 84.dp)
-                TableHeaderCell(text = "حفظ / خيارات", width = 140.dp)
+                TableHeaderCell(text = "إرسال / حفظ / خيارات", width = 180.dp)
             }
 
             // Student Rows
@@ -180,9 +183,9 @@ fun GradeTable(
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "$pct%",
+                                    text = student.percentageDisplay(maxTotal),
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.5.sp,
                                     color = gradeBadgeColor
                                 )
                                 Text(
@@ -194,12 +197,32 @@ fun GradeTable(
                             }
                         }
 
-                        // Actions Row: PDF, Excel, Delete
+                        // Actions Row: Send WhatsApp, PDF, Excel, Delete
                         Row(
-                            modifier = Modifier.width(140.dp),
+                            modifier = Modifier.width(180.dp),
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Send to Phone / WhatsApp Button for single student
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFF16A34A))
+                                    .clickable { onSendStudentReport(student) }
+                                    .testTag("send_student_whatsapp_${student.id}"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Send,
+                                    contentDescription = "إرسال كشف الطالب لرقم هاتف",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(5.dp))
+
                             // PDF Button for single student
                             Box(
                                 modifier = Modifier
@@ -214,7 +237,7 @@ fun GradeTable(
                                     imageVector = Icons.Default.PictureAsPdf,
                                     contentDescription = "حفظ PDF للطالب",
                                     tint = Color.White,
-                                    modifier = Modifier.size(17.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
 
@@ -225,7 +248,7 @@ fun GradeTable(
                                 modifier = Modifier
                                     .size(32.dp)
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(Color(0xFF16A34A))
+                                    .background(Color(0xFF0D9488))
                                     .clickable { onSaveStudentExcel(student) }
                                     .testTag("save_student_excel_${student.id}"),
                                 contentAlignment = Alignment.Center
@@ -234,7 +257,7 @@ fun GradeTable(
                                     imageVector = Icons.Default.TableChart,
                                     contentDescription = "حفظ Excel للطالب",
                                     tint = Color.White,
-                                    modifier = Modifier.size(17.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
 
@@ -252,9 +275,9 @@ fun GradeTable(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
-                                    contentDescription = "حذف العملية الحسابية",
+                                    contentDescription = "حذف درجات الطالب",
                                     tint = Color.White,
-                                    modifier = Modifier.size(17.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }

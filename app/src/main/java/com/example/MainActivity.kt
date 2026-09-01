@@ -23,6 +23,8 @@ import com.example.ui.components.AddEditStudentDialog
 import com.example.ui.components.BackupRestoreDialog
 import com.example.ui.components.EditSchoolInfoDialog
 import com.example.ui.components.FactoryResetDialog
+import com.example.ui.components.SendClassSheetDialog
+import com.example.ui.components.SendStudentReportDialog
 import com.example.ui.components.SettingsVariablesDialog
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.SemesterGradeScreen
@@ -65,6 +67,12 @@ fun MainAppContent(viewModel: GradeViewModel) {
   val showBackupDialog by viewModel.showBackupDialog.collectAsState()
   val showAddStudentDialog by viewModel.showAddStudentDialog.collectAsState()
   val editingStudent by viewModel.editingStudent.collectAsState()
+  val sendingStudent by viewModel.sendingStudent.collectAsState()
+  val showSendClassDialog by viewModel.showSendClassDialog.collectAsState()
+  val selectedMonth by viewModel.selectedMonth.collectAsState()
+  val selectedSection by viewModel.selectedSection.collectAsState()
+  val selectedSubject by viewModel.selectedSubject.collectAsState()
+  val currentStudents by viewModel.currentStudents.collectAsState()
 
   // Collect Toast messages
   LaunchedEffect(Unit) {
@@ -129,6 +137,49 @@ fun MainAppContent(viewModel: GradeViewModel) {
         onDismiss = { viewModel.closeAddStudentDialog() },
         onSave = { id, name, att, hw, oral, written ->
           viewModel.saveStudent(id, name, att, hw, oral, written)
+        }
+      )
+    }
+
+    if (sendingStudent != null) {
+      SendStudentReportDialog(
+        student = sendingStudent!!,
+        schoolInfo = schoolInfo,
+        semester = if (currentScreen == 2) 2 else 1,
+        onDismiss = { viewModel.closeSendStudentDialog() },
+        onSend = { format, phone, messageText ->
+          viewModel.sendSingleStudentReport(context, sendingStudent!!, format, phone, messageText)
+        },
+        onShareGeneral = { format ->
+          if (format == "PDF") {
+            viewModel.exportSingleStudentPdf(context, sendingStudent!!)
+          } else {
+            viewModel.exportSingleStudentExcel(context, sendingStudent!!)
+          }
+          viewModel.closeSendStudentDialog()
+        }
+      )
+    }
+
+    if (showSendClassDialog) {
+      SendClassSheetDialog(
+        schoolInfo = schoolInfo,
+        semester = if (currentScreen == 2) 2 else 1,
+        month = selectedMonth,
+        section = selectedSection,
+        subject = selectedSubject,
+        studentsCount = currentStudents.size,
+        onDismiss = { viewModel.closeSendClassDialog() },
+        onSend = { format, phone, messageText ->
+          viewModel.sendClassSheetReport(context, format, phone, messageText)
+        },
+        onShareGeneral = { format ->
+          if (format == "PDF") {
+            viewModel.exportClassPdf(context)
+          } else {
+            viewModel.exportClassExcel(context)
+          }
+          viewModel.closeSendClassDialog()
         }
       )
     }
