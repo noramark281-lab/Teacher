@@ -1,0 +1,6 @@
+{
+  "name": "كشف أعمال السنة",
+  "description": "برنامج حسابي ذكي لكشف درجات أعمال السنة والشهور والدرجات المدرسية وتصدير كشوفات PDF و Excel",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
