@@ -188,7 +188,7 @@ object PdfExporter {
             }
 
             // Footer Statistics & Signatures
-            val footerY = pageHeight - 65f
+            val footerY = pageHeight - 68f
             paint.color = Color.parseColor("#CBD5E1")
             paint.strokeWidth = 1f
             canvas.drawLine(28f, footerY - 10f, pageWidth - 28f, footerY - 10f, paint)
@@ -197,13 +197,20 @@ object PdfExporter {
             paint.textSize = 9.5f
             paint.textAlign = Paint.Align.RIGHT
             paint.isFakeBoldText = true
-            canvas.drawText("توقيع معلم المادة: ......................", pageWidth - 36f, footerY + 12f, paint)
-            canvas.drawText("مدير المدرسة: ......................", pageWidth - 260f, footerY + 12f, paint)
+            canvas.drawText("توقيع معلم المادة: ......................", pageWidth - 36f, footerY + 10f, paint)
+            canvas.drawText("مدير المدرسة: ......................", pageWidth - 260f, footerY + 10f, paint)
 
             val dateStr = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()).format(Date())
             paint.textAlign = Paint.Align.LEFT
             paint.isFakeBoldText = false
-            canvas.drawText("تاريخ الطباعة: $dateStr | كشف أعمال السنة الذكي", 36f, footerY + 12f, paint)
+            canvas.drawText("تاريخ الطباعة: $dateStr | كشف أعمال السنة الذكي", 36f, footerY + 10f, paint)
+
+            // Permanent Developer Signature Stamp (طابع دائم لا يمكن إزالته)
+            paint.color = Color.parseColor("#1E3A8A")
+            paint.textSize = 9.5f
+            paint.isFakeBoldText = true
+            paint.textAlign = Paint.Align.CENTER
+            canvas.drawText("برمجة الدكتور/ مالك الرميمة 🦷هاتف 771134103", pageWidth / 2f, footerY + 30f, paint)
 
             pdfDoc.finishPage(page)
 
@@ -232,7 +239,7 @@ object PdfExporter {
         try {
             val pdfDoc = PdfDocument()
             val pageWidth = 400
-            val pageHeight = 500
+            val pageHeight = 525
             val pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, 1).create()
             val page = pdfDoc.startPage(pageInfo)
             val canvas = page.canvas
@@ -364,13 +371,20 @@ object PdfExporter {
             paint.textAlign = Paint.Align.LEFT
             canvas.drawText("$pctFormatted ($gradeSymbol)", valueLeftX, gradesY + 142f, paint)
 
-            // Footer
+            // Developer Signature Stamp (طابع دائم لا يمكن إزالته)
+            paint.color = Color.parseColor("#1E3A8A")
+            paint.textSize = 9.5f
+            paint.isFakeBoldText = true
+            paint.textAlign = Paint.Align.CENTER
+            canvas.drawText("برمجة الدكتور/ مالك الرميمة 🦷هاتف 771134103", pageWidth / 2f, pageHeight - 44f, paint)
+
+            // Footer Date
             val dateStr = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()).format(Date())
             paint.color = Color.parseColor("#64748B")
-            paint.textSize = 10f
+            paint.textSize = 9f
             paint.isFakeBoldText = false
             paint.textAlign = Paint.Align.CENTER
-            canvas.drawText("تاريخ الإصدار: $dateStr", pageWidth / 2f, pageHeight - 30f, paint)
+            canvas.drawText("تاريخ الإصدار: $dateStr", pageWidth / 2f, pageHeight - 25f, paint)
 
             pdfDoc.finishPage(page)
 

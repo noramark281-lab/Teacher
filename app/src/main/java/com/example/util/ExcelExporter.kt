@@ -45,6 +45,8 @@ object ExcelExporter {
                 writer.write("${s.studentOrder},\"${s.studentName}\",${s.attendance},${s.homework},${s.oral},${s.written},$total,$pct%,$grade,\"${s.notes}\"\n")
             }
 
+            writer.write("\n\"برمجة الدكتور/ مالك الرميمة 🦷هاتف 771134103\",,,,,,,,,\n")
+
             writer.flush()
             writer.close()
             fos.close()
@@ -90,7 +92,8 @@ object ExcelExporter {
 
             writer.write("المجموع الكلي,$total,$maxTotal\n")
             writer.write("النسبة المئوية,$pct%,\n")
-            writer.write("التقدير العام,$grade,\n")
+            writer.write("التقدير العام,$grade,\n\n")
+            writer.write("\"برمجة الدكتور/ مالك الرميمة 🦷هاتف 771134103\",,\n")
 
             writer.flush()
             writer.close()
