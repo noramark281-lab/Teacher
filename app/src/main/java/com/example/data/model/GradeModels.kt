@@ -86,3 +86,63 @@ fun Double.formatScore(): String {
         String.format(java.util.Locale.US, "%.1f", this)
     }
 }
+
+fun Double.formatPrecise(decimals: Int = 2): String {
+    return if (this % 1.0 == 0.0) {
+        this.toInt().toString()
+    } else {
+        String.format(java.util.Locale.US, "%.${decimals}f", this)
+    }
+}
+
+data class MonthGradeSummary(
+    val monthName: String,
+    val totalScore: Double = 0.0,
+    val outcome: Double = 0.0, // مجموع درجات الشهر ÷ 5
+    val hasRecord: Boolean = false
+)
+
+data class StudentSemesterOutcome(
+    val studentName: String,
+    val section: String = "",
+    val subject: String = "",
+    val semester: Int = 1,
+    val month1: MonthGradeSummary = MonthGradeSummary("الشهر الأول"),
+    val month2: MonthGradeSummary = MonthGradeSummary("الشهر الثاني"),
+    val month3: MonthGradeSummary = MonthGradeSummary("الشهر الثالث"),
+    val extraMonths: List<MonthGradeSummary> = emptyList()
+) {
+    // مجموع محصلة الثلاثة أشهر
+    val sumOf3MonthsOutcome: Double
+        get() = month1.outcome + month2.outcome + month3.outcome
+
+    // محصلة الفصل = مجموع محصلات الثلاثة أشهر ÷ 3
+    val semesterOutcomeDividedBy3: Double
+        get() = sumOf3MonthsOutcome / 3.0
+
+    fun semesterOutcomeDisplay(): String {
+        return semesterOutcomeDividedBy3.formatPrecise(2)
+    }
+}
+
+data class StudentFinalOutcome(
+    val studentName: String,
+    val section: String = "",
+    val subject: String = "",
+    val sem1Data: StudentSemesterOutcome? = null,
+    val sem2Data: StudentSemesterOutcome? = null
+) {
+    val sem1Outcome: Double
+        get() = sem1Data?.semesterOutcomeDividedBy3 ?: 0.0
+
+    val sem2Outcome: Double
+        get() = sem2Data?.semesterOutcomeDividedBy3 ?: 0.0
+
+    // المحصلة النهائية = جمع محصلة الفصل الأول مع محصلة الفصل الثاني
+    val finalCombinedOutcome: Double
+        get() = sem1Outcome + sem2Outcome
+
+    fun finalCombinedDisplay(): String {
+        return finalCombinedOutcome.formatPrecise(2)
+    }
+}

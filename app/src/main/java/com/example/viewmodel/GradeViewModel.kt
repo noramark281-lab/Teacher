@@ -7,8 +7,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.data.db.AppDatabase
+import com.example.data.model.MonthGradeSummary
 import com.example.data.model.SchoolInfo
+import com.example.data.model.StudentFinalOutcome
 import com.example.data.model.StudentGradeEntity
+import com.example.data.model.StudentSemesterOutcome
 import com.example.data.repository.GradeRepository
 import com.example.util.ExcelExporter
 import com.example.util.PdfExporter
@@ -114,6 +117,103 @@ class GradeViewModel(
             repository.getAllStudentsForSemester(actualSem)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allDatabaseStudents: StateFlow<List<StudentGradeEntity>> = repository.getAllStudents()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Search query for semester outcome lookup
+    private val _semesterSearchQuery = MutableStateFlow("")
+    val semesterSearchQuery = _semesterSearchQuery.asStateFlow()
+
+    fun setSemesterSearchQuery(query: String) {
+        _semesterSearchQuery.value = query
+    }
+
+    // Search query for final outcome lookup
+    private val _finalOutcomeSearchQuery = MutableStateFlow("")
+    val finalOutcomeSearchQuery = _finalOutcomeSearchQuery.asStateFlow()
+
+    fun setFinalOutcomeSearchQuery(query: String) {
+        _finalOutcomeSearchQuery.value = query
+    }
+
+    // Calculate Semester Outcomes for all students in a semester
+    fun getSemesterOutcomes(allGrades: List<StudentGradeEntity>, semester: Int): List<StudentSemesterOutcome> {
+        val semGrades = allGrades.filter { it.semester == semester }
+        val groupedByName = semGrades.groupBy { it.studentName.trim() }
+
+        return groupedByName.map { (studentName, records) ->
+            val sortedRecords = records.sortedBy { it.month }
+            var m1Record = records.find { it.month.contains("الأول") || it.month.contains("1") || it.month.contains("محرم") }
+            var m2Record = records.find { it.month.contains("الثاني") || it.month.contains("2") || it.month.contains("صفر") }
+            var m3Record = records.find { it.month.contains("الثالث") || it.month.contains("3") || it.month.contains("ربيع") }
+
+            if (m1Record == null && sortedRecords.isNotEmpty()) m1Record = sortedRecords.getOrNull(0)
+            if (m2Record == null && sortedRecords.size > 1) m2Record = sortedRecords.getOrNull(1)
+            if (m3Record == null && sortedRecords.size > 2) m3Record = sortedRecords.getOrNull(2)
+
+            val m1Summary = MonthGradeSummary(
+                monthName = m1Record?.month ?: "الشهر الأول",
+                totalScore = m1Record?.totalScore ?: 0.0,
+                outcome = (m1Record?.totalScore ?: 0.0) / 5.0,
+                hasRecord = m1Record != null
+            )
+            val m2Summary = MonthGradeSummary(
+                monthName = m2Record?.month ?: "الشهر الثاني",
+                totalScore = m2Record?.totalScore ?: 0.0,
+                outcome = (m2Record?.totalScore ?: 0.0) / 5.0,
+                hasRecord = m2Record != null
+            )
+            val m3Summary = MonthGradeSummary(
+                monthName = m3Record?.month ?: "الشهر الثالث",
+                totalScore = m3Record?.totalScore ?: 0.0,
+                outcome = (m3Record?.totalScore ?: 0.0) / 5.0,
+                hasRecord = m3Record != null
+            )
+
+            val extraRecords = records.filter { it != m1Record && it != m2Record && it != m3Record }
+            val extraSummaries = extraRecords.map {
+                MonthGradeSummary(
+                    monthName = it.month,
+                    totalScore = it.totalScore,
+                    outcome = it.totalScore / 5.0,
+                    hasRecord = true
+                )
+            }
+
+            val firstRec = records.firstOrNull()
+            StudentSemesterOutcome(
+                studentName = studentName,
+                section = firstRec?.section ?: "",
+                subject = firstRec?.subject ?: "",
+                semester = semester,
+                month1 = m1Summary,
+                month2 = m2Summary,
+                month3 = m3Summary,
+                extraMonths = extraSummaries
+            )
+        }.sortedBy { it.studentName }
+    }
+
+    // Calculate Final Outcomes (الفصل الأول + الفصل الثاني)
+    fun getFinalOutcomes(allGrades: List<StudentGradeEntity>): List<StudentFinalOutcome> {
+        val sem1Outcomes = getSemesterOutcomes(allGrades, 1)
+        val sem2Outcomes = getSemesterOutcomes(allGrades, 2)
+
+        val allNames = (sem1Outcomes.map { it.studentName } + sem2Outcomes.map { it.studentName }).distinct()
+
+        return allNames.map { name ->
+            val s1 = sem1Outcomes.find { it.studentName == name }
+            val s2 = sem2Outcomes.find { it.studentName == name }
+            StudentFinalOutcome(
+                studentName = name,
+                section = s1?.section ?: s2?.section ?: "",
+                subject = s1?.subject ?: s2?.subject ?: "",
+                sem1Data = s1,
+                sem2Data = s2
+            )
+        }.sortedBy { it.studentName }
+    }
 
     fun navigateTo(screenId: Int) {
         _currentScreen.value = screenId

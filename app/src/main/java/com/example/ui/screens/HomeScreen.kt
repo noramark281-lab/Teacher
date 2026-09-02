@@ -25,11 +25,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -66,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.AmberButtonBottom
 import com.example.ui.components.AmberButtonTop
+import com.example.ui.components.BigFinalOutcomeButton
 import com.example.ui.components.BigSemesterButton
 import com.example.ui.components.BlueButtonBorder
 import com.example.ui.components.BlueButtonBottom
@@ -255,6 +258,19 @@ fun HomeScreen(
                         }
                     )
                 }
+
+                // 3.5. Final Outcome Button (المحصلة النهائية)
+                BigFinalOutcomeButton(
+                    title = "المحصلة النهائية",
+                    subtitle = "جمع محصلة الفصل الأول + الفصل الثاني مع محرك البحث",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 500.dp),
+                    testTag = "btn_final_outcome",
+                    onClick = {
+                        viewModel.navigateTo(5)
+                    }
+                )
 
                 // 4. Export & Backup Action Buttons Row (3D Buttons: Backup, Excel, PDF)
                 Row(

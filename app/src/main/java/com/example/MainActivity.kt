@@ -27,6 +27,7 @@ import com.example.ui.components.SendClassSheetDialog
 import com.example.ui.components.SendStudentReportDialog
 import com.example.ui.components.SettingsVariablesDialog
 import com.example.ui.screens.ClassSelectionScreen
+import com.example.ui.screens.FinalOutcomeScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.SemesterGradeScreen
 import com.example.ui.theme.MyApplicationTheme
@@ -91,6 +92,7 @@ fun MainAppContent(viewModel: GradeViewModel) {
       2 -> ClassSelectionScreen(semester = 2, viewModel = viewModel)
       3 -> SemesterGradeScreen(semester = 1, viewModel = viewModel)
       4 -> SemesterGradeScreen(semester = 2, viewModel = viewModel)
+      5 -> FinalOutcomeScreen(viewModel = viewModel)
       else -> HomeScreen(viewModel = viewModel)
     }
 

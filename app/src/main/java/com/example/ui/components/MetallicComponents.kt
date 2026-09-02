@@ -326,3 +326,82 @@ fun SmallActionButton3D(
         )
     }
 }
+
+@Composable
+fun BigFinalOutcomeButton(
+    title: String = "المحصلة النهائية",
+    subtitle: String = "جمع محصلة الفصل الأول + الفصل الثاني ومحرك البحث",
+    modifier: Modifier = Modifier,
+    testTag: String = "btn_final_outcome",
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(18.dp),
+                ambientColor = Color(0x44000000),
+                spotColor = Color(0x66000000)
+            )
+            .clip(RoundedCornerShape(18.dp))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color(0xFF1E3A8A), Color(0xFF0F172A))
+                )
+            )
+            .drawBehind {
+                drawRoundRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(GoldBorderLight, GoldBorderDark)
+                    ),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(18.dp.toPx()),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5.dp.toPx())
+                )
+            }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true, color = Color.White),
+                onClick = onClick
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .testTag(testTag),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = title,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White
+                )
+                if (subtitle.isNotEmpty()) {
+                    Text(
+                        text = subtitle,
+                        fontSize = 11.5.sp,
+                        color = Color(0xFFCBD5E1)
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFFFDE047))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "عرض الكشف",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF0F172A)
+                )
+            }
+        }
+    }
+}
+

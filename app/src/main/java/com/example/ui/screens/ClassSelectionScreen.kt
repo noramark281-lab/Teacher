@@ -29,17 +29,21 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Class
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -47,6 +51,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +61,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -63,9 +69,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.StudentSemesterOutcome
+import com.example.data.model.formatPrecise
+import com.example.data.model.formatScore
 import com.example.ui.components.GoldBorderCard
-import com.example.ui.components.GoldBorderDark
-import com.example.ui.components.GoldBorderLight
 import com.example.ui.components.MetalBgBottom
 import com.example.ui.components.MetalBgCenter
 import com.example.ui.components.MetalBgTop
@@ -75,7 +82,7 @@ data class GradeLevelItem(
     val id: String,
     val title: String,
     val stage: String,
-    val stageCategory: String, // "primary", "prep", "secondary"
+    val stageCategory: String, // primary, prep, secondary
     val orderNumber: String,
     val icon: ImageVector,
     val primaryColor: Color,
@@ -86,7 +93,7 @@ data class GradeLevelItem(
 val GRADE_LEVELS_LIST = listOf(
     // 1. المرحلة الابتدائية (1 - 6)
     GradeLevelItem(
-        id = "primary_1",
+        id = "prim_1",
         title = "الصف الأول الابتدائي",
         stage = "المرحلة الابتدائية",
         stageCategory = "primary",
@@ -97,7 +104,7 @@ val GRADE_LEVELS_LIST = listOf(
         borderColor = Color(0xFF93C5FD)
     ),
     GradeLevelItem(
-        id = "primary_2",
+        id = "prim_2",
         title = "الصف الثاني الابتدائي",
         stage = "المرحلة الابتدائية",
         stageCategory = "primary",
@@ -108,7 +115,7 @@ val GRADE_LEVELS_LIST = listOf(
         borderColor = Color(0xFF93C5FD)
     ),
     GradeLevelItem(
-        id = "primary_3",
+        id = "prim_3",
         title = "الصف الثالث الابتدائي",
         stage = "المرحلة الابتدائية",
         stageCategory = "primary",
@@ -119,7 +126,7 @@ val GRADE_LEVELS_LIST = listOf(
         borderColor = Color(0xFF93C5FD)
     ),
     GradeLevelItem(
-        id = "primary_4",
+        id = "prim_4",
         title = "الصف الرابع الابتدائي",
         stage = "المرحلة الابتدائية",
         stageCategory = "primary",
@@ -130,7 +137,7 @@ val GRADE_LEVELS_LIST = listOf(
         borderColor = Color(0xFF93C5FD)
     ),
     GradeLevelItem(
-        id = "primary_5",
+        id = "prim_5",
         title = "الصف الخامس الابتدائي",
         stage = "المرحلة الابتدائية",
         stageCategory = "primary",
@@ -141,7 +148,7 @@ val GRADE_LEVELS_LIST = listOf(
         borderColor = Color(0xFF93C5FD)
     ),
     GradeLevelItem(
-        id = "primary_6",
+        id = "prim_6",
         title = "الصف السادس الابتدائي",
         stage = "المرحلة الابتدائية",
         stageCategory = "primary",
@@ -233,7 +240,21 @@ fun ClassSelectionScreen(
     val schoolInfo by viewModel.schoolInfo.collectAsState()
     val semesterTitle = if (semester == 1) "الفصل الأول" else "الفصل الثاني"
     val themeColorTop = if (semester == 1) Color(0xFF1E3A8A) else Color(0xFF14532D)
-    val themeColorBottom = if (semester == 1) Color(0xFF2563EB) else Color(0xFF16A34A)
+
+    val allStudents by viewModel.allDatabaseStudents.collectAsState()
+    val searchQuery by viewModel.semesterSearchQuery.collectAsState()
+
+    val semesterOutcomes: List<StudentSemesterOutcome> = remember(allStudents, semester) {
+        viewModel.getSemesterOutcomes(allGrades = allStudents, semester = semester)
+    }
+
+    val filteredOutcomes: List<StudentSemesterOutcome> = remember(semesterOutcomes, searchQuery) {
+        if (searchQuery.isBlank()) {
+            emptyList<StudentSemesterOutcome>()
+        } else {
+            semesterOutcomes.filter { it.studentName.contains(searchQuery.trim(), ignoreCase = true) }
+        }
+    }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Scaffold(
@@ -304,7 +325,101 @@ fun ClassSelectionScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // Header Banner
+                    // 1. Search Bar for Student Outcome in this Semester
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .shadow(3.dp, RoundedCornerShape(12.dp)),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                        ) {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { viewModel.setSemesterSearchQuery(it) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(6.dp)
+                                    .testTag("input_search_student_semester_outcome"),
+                                placeholder = {
+                                    Text(
+                                        text = "ابحث باسم الطالب للحصول على محصلته (مجموع 3 أشهر ÷ 3)...",
+                                        fontSize = 13.sp,
+                                        color = Color(0xFF94A3B8)
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "بحث",
+                                        tint = themeColorTop
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (searchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { viewModel.setSemesterSearchQuery("") }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Clear,
+                                                contentDescription = "مسح",
+                                                tint = Color(0xFF64748B)
+                                            )
+                                        }
+                                    }
+                                },
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = themeColorTop,
+                                    unfocusedBorderColor = Color(0xFFE2E8F0)
+                                )
+                            )
+                        }
+                    }
+
+                    // 2. Search Results if Query entered
+                    if (searchQuery.isNotBlank()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Text(
+                                text = "نتائج البحث عن محصلة الطالب في $semesterTitle (${filteredOutcomes.size}):",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                        }
+
+                        if (filteredOutcomes.isEmpty()) {
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color.White)
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "لم يتم العثور على طالب بهذا الاسم في $semesterTitle",
+                                        fontSize = 13.sp,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+                            }
+                        } else {
+                            items(
+                                items = filteredOutcomes,
+                                key = { "search_${it.studentName}" },
+                                span = { GridItemSpan(maxLineSpan) }
+                            ) { res ->
+                                SemesterStudentOutcomeResultCard(
+                                    outcome = res,
+                                    themeColor = themeColorTop
+                                )
+                            }
+                        }
+                    }
+
+                    // 3. Header Banner
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         GoldBorderCard(
                             modifier = Modifier
@@ -368,6 +483,162 @@ fun ClassSelectionScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun SemesterStudentOutcomeResultCard(
+    outcome: StudentSemesterOutcome,
+    themeColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(3.dp, RoundedCornerShape(12.dp))
+            .border(1.2.dp, themeColor.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(themeColor.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = themeColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = outcome.studentName,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F172A)
+                        )
+                        Text(
+                            text = "الشعبة: ${outcome.section} | المادة: ${outcome.subject}",
+                            fontSize = 11.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Outcome divided by 3 Box next to the name
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(themeColor)
+                        .border(1.dp, Color(0xFFFDE047), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "المحصلة (÷ 3)",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFEF08A)
+                        )
+                        Text(
+                            text = outcome.semesterOutcomeDisplay(),
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 3 Months Mini Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xFFF8FAFC))
+                    .padding(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                MonthResultItem(
+                    monthTitle = "الشهر 1",
+                    total = outcome.month1.totalScore,
+                    outcome = outcome.month1.outcome,
+                    has = outcome.month1.hasRecord,
+                    modifier = Modifier.weight(1f)
+                )
+                MonthResultItem(
+                    monthTitle = "الشهر 2",
+                    total = outcome.month2.totalScore,
+                    outcome = outcome.month2.outcome,
+                    has = outcome.month2.hasRecord,
+                    modifier = Modifier.weight(1f)
+                )
+                MonthResultItem(
+                    monthTitle = "الشهر 3",
+                    total = outcome.month3.totalScore,
+                    outcome = outcome.month3.outcome,
+                    has = outcome.month3.hasRecord,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun MonthResultItem(
+    monthTitle: String,
+    total: Double,
+    outcome: Double,
+    has: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(Color.White)
+            .border(0.5.dp, Color(0xFFE2E8F0), RoundedCornerShape(4.dp))
+            .padding(4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = monthTitle, fontSize = 9.5.sp, color = Color(0xFF64748B))
+            if (has) {
+                Text(
+                    text = "درجة: ${total.formatScore()}",
+                    fontSize = 10.sp,
+                    color = Color(0xFF0F172A)
+                )
+                Text(
+                    text = "محصلة: ${outcome.formatScore()}",
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF16A34A)
+                )
+            } else {
+                Text(text = "-", fontSize = 10.sp, color = Color(0xFFCBD5E1))
             }
         }
     }
