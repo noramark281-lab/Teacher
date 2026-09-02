@@ -90,9 +90,9 @@ object PdfExporter {
             val maxTotal = schoolInfo.maxTotalScore
 
             // Table Column Widths (Sum = 539, from x=28 to x=567)
-            // Order (RTL): [م: 25] [اسم الطالب: 130] [المواظبة: 45] [الواجبات: 45] [الشفوي: 45] [التحريري: 45] [المجموع: 50] [النسبة%: 50] [التقدير: 50]
-            val colWidths = floatArrayOf(26f, 160f, 50f, 50f, 50f, 50f, 55f, 50f, 48f)
-            val headers = arrayOf("م", "اسم الطالب", "مواظبة", "واجبات", "شفوي", "تحريري", "المجموع", "النسبة%", "التقدير")
+            // Order (RTL): [م: 26] [اسم الطالب: 175] [مواظبة: 52] [واجبات: 52] [شفوي: 52] [تحريري: 52] [المجموع: 65] [المحصلة: 65]
+            val colWidths = floatArrayOf(26f, 175f, 52f, 52f, 52f, 52f, 65f, 65f)
+            val headers = arrayOf("م", "اسم الطالب", "مواظبة", "واجبات", "شفوي", "تحريري", "المجموع", "المحصلة")
 
             // Draw Table Header
             paint.style = Paint.Style.FILL
@@ -142,20 +142,17 @@ object PdfExporter {
                 paint.color = Color.parseColor("#1E293B")
 
                 val total = student.totalScore
-                val pct = student.calculatePercentage(maxTotal)
-                val gradeSymbol = student.getGradeSymbol(maxTotal)
-                val pctDisplay = student.percentageDisplay(maxTotal)
+                val outcome = (total / 5.0).formatScore()
 
                 val rowData = arrayOf(
                     "${student.studentOrder}",
                     student.studentName,
-                    "${student.attendance}",
-                    "${student.homework}",
-                    "${student.oral}",
-                    "${student.written}",
-                    "$total",
-                    pctDisplay,
-                    gradeSymbol
+                    "${student.attendance.formatScore()}",
+                    "${student.homework.formatScore()}",
+                    "${student.oral.formatScore()}",
+                    "${student.written.formatScore()}",
+                    total.formatScore(),
+                    outcome
                 )
 
                 currentX = pageWidth - 28f
@@ -169,10 +166,10 @@ object PdfExporter {
                         canvas.drawText(rowData[i], currentX - 8f, yPos + 16f, paint)
                     } else {
                         paint.textAlign = Paint.Align.CENTER
-                        if (i == 6) { // Total score bold
+                        if (i == 6) { // Total score bold blue
                             paint.isFakeBoldText = true
                             paint.color = Color.parseColor("#1D4ED8")
-                        } else if (i == 7) { // Percentage
+                        } else if (i == 7) { // Outcome (المحصلة) bold green
                             paint.isFakeBoldText = true
                             paint.color = Color.parseColor("#047857")
                         } else {
@@ -364,12 +361,12 @@ object PdfExporter {
             paint.textAlign = Paint.Align.LEFT
             canvas.drawText("${total.formatScore()} / ${maxTotal.formatScore()}", valueLeftX, gradesY + 116f, paint)
 
-            // Percentage & Grade
+            // Outcome (المحصلة = المجموع ÷ 5)
             paint.color = Color.parseColor("#047857")
             paint.textAlign = Paint.Align.RIGHT
-            canvas.drawText("النسبة والتقدير:", labelRightX, gradesY + 142f, paint)
+            canvas.drawText("المحصلة (المجموع ÷ 5):", labelRightX, gradesY + 142f, paint)
             paint.textAlign = Paint.Align.LEFT
-            canvas.drawText("$pctFormatted ($gradeSymbol)", valueLeftX, gradesY + 142f, paint)
+            canvas.drawText((total / 5.0).formatScore(), valueLeftX, gradesY + 142f, paint)
 
             // Developer Signature Stamp (طابع دائم لا يمكن إزالته)
             paint.color = Color.parseColor("#1E3A8A")

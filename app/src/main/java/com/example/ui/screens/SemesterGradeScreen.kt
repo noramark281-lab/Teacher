@@ -122,9 +122,9 @@ fun SemesterGradeScreen(
                     title = {
                         Column {
                             Text(
-                                text = "كشف درجات $semesterTitle",
+                                text = "كشف درجات $semesterTitle - ${schoolInfo.gradeLevels}",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
+                                fontSize = 17.sp,
                                 color = Color.White
                             )
                             Text(
@@ -136,12 +136,12 @@ fun SemesterGradeScreen(
                     },
                     navigationIcon = {
                         IconButton(
-                            onClick = { viewModel.navigateTo(0) },
-                            modifier = Modifier.testTag("back_to_home_btn")
+                            onClick = { viewModel.navigateBackFromSemesterGrade(semester) },
+                            modifier = Modifier.testTag("back_to_classes_btn")
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "رجوع للرئيسية",
+                                contentDescription = "رجوع لاختيار الصف",
                                 tint = Color.White
                             )
                         }
@@ -213,6 +213,13 @@ fun SemesterGradeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        DottedInfoField(
+                            prefix = "الصف:",
+                            value = schoolInfo.gradeLevels,
+                            onClick = { viewModel.navigateBackFromSemesterGrade(semester) },
+                            modifier = Modifier.testTag("filter_grade_level_field")
+                        )
+
                         DottedInfoField(
                             prefix = "الشهر:",
                             value = selectedMonth,

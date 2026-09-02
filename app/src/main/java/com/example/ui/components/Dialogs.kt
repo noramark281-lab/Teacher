@@ -418,7 +418,8 @@ fun AddEditStudentDialog(
                     )
                 }
 
-                // 4. Dynamic calculation summary banner (المجموع والنسبة المئوية والتقدير)
+                // 4. Dynamic calculation summary banner (المجموع والمحصلة والتقدير)
+                val outcome = total / 5.0
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -444,18 +445,30 @@ fun AddEditStudentDialog(
                                 fontSize = 14.sp
                             )
                             Text(
-                                text = "النسبة: $pctDisplay",
+                                text = "المحصلة (المجموع ÷ 5): ${outcome.formatScore()}",
                                 fontWeight = FontWeight.Bold,
                                 color = if (anyFieldExceeds) Color(0xFFDC2626) else Color(0xFF047857),
                                 fontSize = 14.sp
                             )
                         }
-                        Text(
-                            text = "التقدير: $evaluation",
-                            fontWeight = FontWeight.Medium,
-                            color = if (anyFieldExceeds) Color(0xFFDC2626) else Color(0xFF475569),
-                            fontSize = 12.sp
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "التقدير: $evaluation",
+                                fontWeight = FontWeight.Medium,
+                                color = if (anyFieldExceeds) Color(0xFFDC2626) else Color(0xFF475569),
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = "النسبة: $pctDisplay",
+                                fontWeight = FontWeight.Normal,
+                                color = Color(0xFF64748B),
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                 }
             }

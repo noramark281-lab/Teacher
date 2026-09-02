@@ -3,6 +3,7 @@ package com.example.util
 import android.content.Context
 import com.example.data.model.SchoolInfo
 import com.example.data.model.StudentGradeEntity
+import com.example.data.model.formatScore
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStreamWriter
@@ -35,17 +36,16 @@ object ExcelExporter {
             writer.write("الأستاذ,\"${schoolInfo.teacherName}\",المادة,\"$subject\",الصف,\"${schoolInfo.gradeLevels}\",الشهر,\"$month\",الشعبة,\"$section\"\n\n")
 
             // Table Headers
-            writer.write("م,اسم الطالب,المواظبة,الواجبات,الشفوي,التحريري,المجموع,النسبة %,التقدير,ملاحظات\n")
+            writer.write("م,اسم الطالب,المواظبة,الواجبات,الشفوي,التحريري,المجموع,المحصلة,ملاحظات\n")
 
             val maxTotal = schoolInfo.maxTotalScore
             for (s in students) {
                 val total = s.totalScore
-                val pct = s.calculatePercentage(maxTotal)
-                val grade = s.getGradeSymbol(maxTotal)
-                writer.write("${s.studentOrder},\"${s.studentName}\",${s.attendance},${s.homework},${s.oral},${s.written},$total,$pct%,$grade,\"${s.notes}\"\n")
+                val outcome = (total / 5.0).formatScore()
+                writer.write("${s.studentOrder},\"${s.studentName}\",${s.attendance},${s.homework},${s.oral},${s.written},$total,$outcome,\"${s.notes}\"\n")
             }
 
-            writer.write("\n\"برمجة الدكتور/ مالك الرميمة 🦷هاتف 771134103\",,,,,,,,,\n")
+            writer.write("\n\"برمجة الدكتور/ مالك الرميمة 🦷هاتف 771134103\",,,,,,,,\n")
 
             writer.flush()
             writer.close()
@@ -87,12 +87,10 @@ object ExcelExporter {
 
             val maxTotal = schoolInfo.maxTotalScore
             val total = student.totalScore
-            val pct = student.calculatePercentage(maxTotal)
-            val grade = student.getGradeSymbol(maxTotal)
+            val outcome = (total / 5.0).formatScore()
 
             writer.write("المجموع الكلي,$total,$maxTotal\n")
-            writer.write("النسبة المئوية,$pct%,\n")
-            writer.write("التقدير العام,$grade,\n\n")
+            writer.write("المحصلة (المجموع ÷ 5),$outcome,\n\n")
             writer.write("\"برمجة الدكتور/ مالك الرميمة 🦷هاتف 771134103\",,\n")
 
             writer.flush()

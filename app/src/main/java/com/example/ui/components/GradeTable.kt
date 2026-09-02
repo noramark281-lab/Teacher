@@ -100,7 +100,7 @@ fun GradeTable(
                 TableHeaderCell(text = "الشفوي\n(${schoolInfo.maxOral.formatScore()})", width = 72.dp)
                 TableHeaderCell(text = "التحريري\n(${schoolInfo.maxWritten.formatScore()})", width = 74.dp)
                 TableHeaderCell(text = "المجموع\n(${maxTotal.formatScore()})", width = 78.dp)
-                TableHeaderCell(text = "نسبة %\nالتقدير", width = 84.dp)
+                TableHeaderCell(text = "المحصلة", width = 84.dp)
                 TableHeaderCell(text = "إرسال / حفظ / خيارات", width = 180.dp)
             }
 
@@ -124,16 +124,6 @@ fun GradeTable(
                 students.forEachIndexed { index, student ->
                     val isEven = index % 2 == 0
                     val total = student.totalScore
-                    val pct = student.calculatePercentage(maxTotal)
-                    val gradeSymbol = student.getGradeSymbol(maxTotal)
-
-                    val gradeBadgeColor = when {
-                        pct >= 90.0 -> Color(0xFF16A34A)
-                        pct >= 80.0 -> Color(0xFF2563EB)
-                        pct >= 65.0 -> Color(0xFFD97706)
-                        pct >= 50.0 -> Color(0xFFCA8A04)
-                        else -> Color(0xFFDC2626)
-                    }
 
                     Row(
                         modifier = Modifier
@@ -175,27 +165,19 @@ fun GradeTable(
                             backgroundColor = Color(0xFFEFF6FF)
                         )
 
-                        // Percentage & Grade Symbol
+                        // Outcome (المحصلة = المجموع الكلي ÷ 5)
                         Box(
                             modifier = Modifier
                                 .width(84.dp)
                                 .padding(horizontal = 2.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = student.percentageDisplay(maxTotal),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.5.sp,
-                                    color = gradeBadgeColor
-                                )
-                                Text(
-                                    text = gradeSymbol,
-                                    fontSize = 10.sp,
-                                    color = gradeBadgeColor,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
+                            Text(
+                                text = student.outcomeDisplay(),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.5.sp,
+                                color = Color(0xFF047857)
+                            )
                         }
 
                         // Actions Row: Send WhatsApp, PDF, Excel, Delete

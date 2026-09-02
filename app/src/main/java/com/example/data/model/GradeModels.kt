@@ -23,6 +23,13 @@ data class StudentGradeEntity(
     val totalScore: Double
         get() = attendance + homework + oral + written
 
+    val outcomeScore: Double
+        get() = totalScore / 5.0
+
+    fun outcomeDisplay(): String {
+        return outcomeScore.formatScore()
+    }
+
     fun normalizedScore(maxTotal: Double): Double {
         if (maxTotal <= 0.0) return 0.0
         val norm = totalScore / maxTotal

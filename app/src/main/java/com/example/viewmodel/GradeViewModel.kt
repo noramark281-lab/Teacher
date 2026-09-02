@@ -33,9 +33,19 @@ class GradeViewModel(
 
     val schoolInfo: StateFlow<SchoolInfo> = repository.schoolInfoState
 
-    // Navigation & Selected Semester (0: Home, 1: Semester 1, 2: Semester 2)
+    // Navigation & Screen ID:
+    // 0: HomeScreen
+    // 1: ClassSelectionScreen(semester = 1)
+    // 2: ClassSelectionScreen(semester = 2)
+    // 3: SemesterGradeScreen(semester = 1)
+    // 4: SemesterGradeScreen(semester = 2)
     private val _currentScreen = MutableStateFlow<Int>(0)
     val currentScreen = _currentScreen.asStateFlow()
+
+    fun getActiveSemester(): Int {
+        val s = _currentScreen.value
+        return if (s == 2 || s == 4) 2 else 1
+    }
 
     // Filter selectors
     private val _selectedMonth = MutableStateFlow("الشهر الأول")
@@ -93,20 +103,32 @@ class GradeViewModel(
         _selectedSection,
         _selectedSubject
     ) { sem, month, section, subject ->
-        val actualSem = if (sem == 1 || sem == 2) sem else 1
+        val actualSem = if (sem == 2 || sem == 4) 2 else 1
         repository.getStudents(actualSem, month, section, subject)
     }.flatMapLatest { it }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allSemesterStudents: StateFlow<List<StudentGradeEntity>> = _currentScreen
         .flatMapLatest { sem ->
-            val actualSem = if (sem == 1 || sem == 2) sem else 1
+            val actualSem = if (sem == 2 || sem == 4) 2 else 1
             repository.getAllStudentsForSemester(actualSem)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun navigateTo(screenId: Int) {
         _currentScreen.value = screenId
+    }
+
+    fun selectGradeLevelAndOpenSemester(gradeLevel: String, semester: Int) {
+        val currentInfo = schoolInfo.value
+        val updatedInfo = currentInfo.copy(gradeLevels = gradeLevel)
+        repository.saveSchoolInfo(updatedInfo)
+        _currentScreen.value = if (semester == 2) 4 else 3
+    }
+
+    fun navigateBackFromSemesterGrade(semester: Int) {
+        // Return to the class selection screen for this semester
+        _currentScreen.value = if (semester == 2) 2 else 1
     }
 
     fun setSelectedMonth(month: String) {
@@ -321,7 +343,7 @@ class GradeViewModel(
 
     fun exportClassPdf(context: Context) {
         viewModelScope.launch {
-            val sem = if (_currentScreen.value == 2) 2 else 1
+            val sem = getActiveSemester()
             val list = currentStudents.value
             if (list.isEmpty()) {
                 _userMessage.emit("لا توجد بيانات طلاب لتصديرها")
@@ -347,7 +369,7 @@ class GradeViewModel(
 
     fun exportSingleStudentPdf(context: Context, student: StudentGradeEntity) {
         viewModelScope.launch {
-            val sem = if (_currentScreen.value == 2) 2 else 1
+            val sem = getActiveSemester()
             val file = PdfExporter.generateSingleStudentPdf(
                 context = context,
                 schoolInfo = schoolInfo.value,
@@ -363,7 +385,7 @@ class GradeViewModel(
 
     fun exportClassExcel(context: Context) {
         viewModelScope.launch {
-            val sem = if (_currentScreen.value == 2) 2 else 1
+            val sem = getActiveSemester()
             val list = currentStudents.value
             if (list.isEmpty()) {
                 _userMessage.emit("لا توجد بيانات طلاب لتصديرها")
@@ -389,7 +411,7 @@ class GradeViewModel(
 
     fun exportSingleStudentExcel(context: Context, student: StudentGradeEntity) {
         viewModelScope.launch {
-            val sem = if (_currentScreen.value == 2) 2 else 1
+            val sem = getActiveSemester()
             val file = ExcelExporter.generateSingleStudentCsv(
                 context = context,
                 schoolInfo = schoolInfo.value,
@@ -411,7 +433,7 @@ class GradeViewModel(
         messageText: String
     ) {
         viewModelScope.launch {
-            val sem = if (_currentScreen.value == 2) 2 else 1
+            val sem = getActiveSemester()
             val file = if (format == "PDF") {
                 PdfExporter.generateSingleStudentPdf(
                     context = context,
@@ -447,7 +469,7 @@ class GradeViewModel(
         messageText: String
     ) {
         viewModelScope.launch {
-            val sem = if (_currentScreen.value == 2) 2 else 1
+            val sem = getActiveSemester()
             val list = currentStudents.value
             if (list.isEmpty()) {
                 _userMessage.emit("لا توجد بيانات طلاب لإرسالها")

@@ -26,6 +26,7 @@ import com.example.ui.components.FactoryResetDialog
 import com.example.ui.components.SendClassSheetDialog
 import com.example.ui.components.SendStudentReportDialog
 import com.example.ui.components.SettingsVariablesDialog
+import com.example.ui.screens.ClassSelectionScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.SemesterGradeScreen
 import com.example.ui.theme.MyApplicationTheme
@@ -81,11 +82,16 @@ fun MainAppContent(viewModel: GradeViewModel) {
     }
   }
 
+  val activeSemester = viewModel.getActiveSemester()
+
   Box(modifier = Modifier.fillMaxSize()) {
     when (currentScreen) {
       0 -> HomeScreen(viewModel = viewModel)
-      1 -> SemesterGradeScreen(semester = 1, viewModel = viewModel)
-      2 -> SemesterGradeScreen(semester = 2, viewModel = viewModel)
+      1 -> ClassSelectionScreen(semester = 1, viewModel = viewModel)
+      2 -> ClassSelectionScreen(semester = 2, viewModel = viewModel)
+      3 -> SemesterGradeScreen(semester = 1, viewModel = viewModel)
+      4 -> SemesterGradeScreen(semester = 2, viewModel = viewModel)
+      else -> HomeScreen(viewModel = viewModel)
     }
 
     // Dialogs
@@ -145,7 +151,7 @@ fun MainAppContent(viewModel: GradeViewModel) {
       SendStudentReportDialog(
         student = sendingStudent!!,
         schoolInfo = schoolInfo,
-        semester = if (currentScreen == 2) 2 else 1,
+        semester = activeSemester,
         onDismiss = { viewModel.closeSendStudentDialog() },
         onSend = { format, phone, messageText ->
           viewModel.sendSingleStudentReport(context, sendingStudent!!, format, phone, messageText)
@@ -164,7 +170,7 @@ fun MainAppContent(viewModel: GradeViewModel) {
     if (showSendClassDialog) {
       SendClassSheetDialog(
         schoolInfo = schoolInfo,
-        semester = if (currentScreen == 2) 2 else 1,
+        semester = activeSemester,
         month = selectedMonth,
         section = selectedSection,
         subject = selectedSubject,
