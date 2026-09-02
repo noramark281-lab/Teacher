@@ -20,7 +20,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Class
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PictureAsPdf
@@ -1373,6 +1376,421 @@ fun SendClassSheetDialog(
                 }
                 OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(8.dp)) {
                     Text("إلغاء")
+                }
+            }
+        }
+    )
+}
+
+@Composable
+fun ExportByGradeAndSubjectDialog(
+    exportFormat: String, // "PDF" or "EXCEL"
+    schoolInfo: SchoolInfo,
+    allDistinctSubjects: List<String>,
+    allStudents: List<StudentGradeEntity>,
+    onDismiss: () -> Unit,
+    onExport: (format: String, gradeLevel: String, subject: String, semester: Int, month: String, section: String) -> Unit,
+    onNavigateToClass: (gradeLevel: String, semester: Int, subject: String) -> Unit
+) {
+    var selectedFormat by remember { mutableStateOf(exportFormat) }
+    var selectedGrade by remember { mutableStateOf(schoolInfo.gradeLevels) }
+    var selectedSubject by remember { mutableStateOf(schoolInfo.defaultSubject) }
+    var selectedSemester by remember { mutableStateOf(1) }
+    var selectedMonth by remember { mutableStateOf("الشهر الأول") }
+    var selectedSection by remember { mutableStateOf("أ") }
+    var customSubjectInput by remember { mutableStateOf("") }
+
+    val gradeLevelsList = listOf(
+        "الصف الأول الابتدائي", "الصف الثاني الابتدائي", "الصف الثالث الابتدائي",
+        "الصف الرابع الابتدائي", "الصف الخامس الابتدائي", "الصف السادس الابتدائي",
+        "الصف الأول الإعدادي", "الصف الثاني الإعدادي", "الصف الثالث الإعدادي",
+        "الصف الأول الثانوي", "الصف الثاني الثانوي", "الصف الثالث الثانوي"
+    )
+
+    val defaultSubjects = listOf(
+        "أحياء", "رياضيات", "لغة عربية", "فيزياء", "كيمياء",
+        "قرآن كريم", "تربية إسلامية", "لغة إنجليزية", "علوم", "اجتماعيات", "حاسوب"
+    )
+
+    val mergedSubjects = remember(allDistinctSubjects) {
+        (defaultSubjects + allDistinctSubjects).distinct()
+    }
+
+    // Matching students from database
+    val matchingStudents = remember(allStudents, selectedSemester, selectedSubject, selectedMonth, selectedSection) {
+        allStudents.filter {
+            it.semester == selectedSemester &&
+            it.subject == selectedSubject &&
+            it.month == selectedMonth &&
+            it.section == selectedSection
+        }.sortedWith(compareBy({ it.studentOrder }, { it.id }))
+    }
+
+    // Roster count of students in this semester and section across all records
+    val rosterCount = remember(allStudents, selectedSemester, selectedSection) {
+        allStudents.filter {
+            it.semester == selectedSemester && it.section == selectedSection
+        }.map { it.studentName }.distinct().size
+    }
+
+    val isExcel = selectedFormat.equals("EXCEL", ignoreCase = true)
+    val themeColor = if (isExcel) Color(0xFF15803D) else Color(0xFF1E40AF)
+    val headerBgColor = if (isExcel) Color(0xFFDCFCE7) else Color(0xFFEFF6FF)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (isExcel) Icons.Default.TableChart else Icons.Default.PictureAsPdf,
+                            contentDescription = null,
+                            tint = themeColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isExcel) "تصدير كشف Excel" else "تصدير كشف PDF",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                            color = themeColor
+                        )
+                    }
+
+                    // Format toggle chips
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (!isExcel) Color(0xFF1E40AF) else Color(0xFFF1F5F9))
+                                .clickable { selectedFormat = "PDF" }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "PDF",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (!isExcel) Color.White else Color(0xFF475569)
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isExcel) Color(0xFF15803D) else Color(0xFFF1F5F9))
+                                .clickable { selectedFormat = "EXCEL" }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "Excel",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isExcel) Color.White else Color(0xFF475569)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "حدد المرحلة الدراسية والمادة لتصدير كشف درجات الطلاب مباشرة",
+                    fontSize = 11.5.sp,
+                    color = Color(0xFF64748B)
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // 1. Stage / Grade Level Selection
+                Text(
+                    text = "١. المرحلة الدراسية / الصف:",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = Color(0xFF1E293B)
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    gradeLevelsList.forEach { grade ->
+                        val isSelected = grade == selectedGrade
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) themeColor else Color(0xFFF1F5F9))
+                                .border(
+                                    1.dp,
+                                    if (isSelected) themeColor else Color(0xFFCBD5E1),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .clickable { selectedGrade = grade }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = grade,
+                                fontSize = 11.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) Color.White else Color(0xFF334155)
+                            )
+                        }
+                    }
+                }
+
+                // 2. Subject Selection
+                Text(
+                    text = "٢. المادة الدراسية:",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = Color(0xFF1E293B)
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    mergedSubjects.forEach { subj ->
+                        val isSelected = subj == selectedSubject
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) themeColor else Color(0xFFF1F5F9))
+                                .border(
+                                    1.dp,
+                                    if (isSelected) themeColor else Color(0xFFCBD5E1),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .clickable {
+                                    selectedSubject = subj
+                                    customSubjectInput = ""
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = subj,
+                                fontSize = 11.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) Color.White else Color(0xFF334155)
+                            )
+                        }
+                    }
+                }
+
+                // Custom Subject Input Option
+                OutlinedTextField(
+                    value = customSubjectInput,
+                    onValueChange = {
+                        customSubjectInput = it
+                        if (it.isNotBlank()) selectedSubject = it.trim()
+                    },
+                    placeholder = { Text("أو اكتب اسم مادة أخرى مخصصة...") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("export_custom_subject_input")
+                )
+
+                // 3. Semester & Month & Section Row
+                Text(
+                    text = "٣. الفصل والشهر والشعبة:",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = Color(0xFF1E293B)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Semester Selector
+                    listOf(1 to "الفصل 1", 2 to "الفصل 2").forEach { (semId, label) ->
+                        val isSelected = selectedSemester == semId
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) themeColor else Color(0xFFF8FAFC))
+                                .border(1.dp, if (isSelected) themeColor else Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                                .clickable { selectedSemester = semId }
+                                .padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) Color.White else Color(0xFF334155)
+                            )
+                        }
+                    }
+
+                    // Section Selector
+                    listOf("أ", "ب", "ج").forEach { sec ->
+                        val isSelected = selectedSection == sec
+                        Box(
+                            modifier = Modifier
+                                .weight(0.7f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) themeColor else Color(0xFFF8FAFC))
+                                .border(1.dp, if (isSelected) themeColor else Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                                .clickable { selectedSection = sec }
+                                .padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "شعبة $sec",
+                                fontSize = 11.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) Color.White else Color(0xFF334155)
+                            )
+                        }
+                    }
+                }
+
+                // Months row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf("الشهر الأول", "الشهر الثاني", "الشهر الثالث", "الشهر الرابع").forEach { m ->
+                        val isSelected = selectedMonth == m
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isSelected) Color(0xFF334155) else Color(0xFFF1F5F9))
+                                .clickable { selectedMonth = m }
+                                .padding(horizontal = 8.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = m,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) Color.White else Color(0xFF334155)
+                            )
+                        }
+                    }
+                }
+
+                // 4. Status and Students Count Summary Card
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(headerBgColor)
+                        .border(1.dp, if (isExcel) Color(0xFF86EFAC) else Color(0xFFBFDBFE), RoundedCornerShape(10.dp))
+                        .padding(10.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "كشف: $selectedGrade",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = themeColor
+                            )
+                            Text(
+                                text = "مادة: $selectedSubject",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = themeColor
+                            )
+                        }
+
+                        if (matchingStudents.isNotEmpty()) {
+                            Text(
+                                text = "✅ تم العثور على (${matchingStudents.size}) طالب برصيد درجاتهم في هذا الكشف",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF047857)
+                            )
+                            // Mini preview of names
+                            val namesPreview = matchingStudents.take(4).joinToString("، ") { it.studentName } +
+                                    if (matchingStudents.size > 4) " ...وغيرهم" else ""
+                            Text(
+                                text = "الطلاب: $namesPreview",
+                                fontSize = 10.5.sp,
+                                color = Color(0xFF475569),
+                                maxLines = 1
+                            )
+                        } else if (rosterCount > 0) {
+                            Text(
+                                text = "📋 سيتم إدراج أسماء طلاب الشعبة ($rosterCount طالب) في كشف مادة $selectedSubject",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFB45309)
+                            )
+                        } else {
+                            Text(
+                                text = "ℹ️ لا توجد أسماء مسجلة بعد لهذا الفصل والشعبة، انقر على زر (فتح جدول الرصد) لإدخالهم",
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onExport(
+                        selectedFormat,
+                        selectedGrade,
+                        selectedSubject,
+                        selectedSemester,
+                        selectedMonth,
+                        selectedSection
+                    )
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = themeColor),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.testTag("btn_confirm_export_grade_subject")
+            ) {
+                Icon(
+                    imageVector = if (isExcel) Icons.Default.TableChart else Icons.Default.PictureAsPdf,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("تصدير كشف $selectedFormat 📥", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        onNavigateToClass(selectedGrade, selectedSemester, selectedSubject)
+                        onDismiss()
+                    },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("فتح جدول الرصد", fontSize = 11.5.sp)
+                }
+
+                OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(8.dp)) {
+                    Text("إلغاء", fontSize = 11.5.sp)
                 }
             }
         }

@@ -259,19 +259,6 @@ fun HomeScreen(
                     )
                 }
 
-                // 3.5. Final Outcome Button (المحصلة النهائية)
-                BigFinalOutcomeButton(
-                    title = "المحصلة النهائية",
-                    subtitle = "جمع محصلة الفصل الأول + الفصل الثاني مع محرك البحث",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .widthIn(max = 500.dp),
-                    testTag = "btn_final_outcome",
-                    onClick = {
-                        viewModel.navigateTo(5)
-                    }
-                )
-
                 // 4. Export & Backup Action Buttons Row (3D Buttons: Backup, Excel, PDF)
                 Row(
                     modifier = Modifier
@@ -299,7 +286,7 @@ fun HomeScreen(
                         modifier = Modifier.weight(1f),
                         testTag = "btn_export_excel",
                         onClick = {
-                            viewModel.exportClassExcel(context)
+                            viewModel.openExportModal("EXCEL")
                         }
                     )
 
@@ -311,7 +298,7 @@ fun HomeScreen(
                         modifier = Modifier.weight(1f),
                         testTag = "btn_export_pdf",
                         onClick = {
-                            viewModel.exportClassPdf(context)
+                            viewModel.openExportModal("PDF")
                         }
                     )
                 }

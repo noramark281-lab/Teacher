@@ -93,6 +93,13 @@ class GradeViewModel(
     private val _showSendClassDialog = MutableStateFlow(false)
     val showSendClassDialog = _showSendClassDialog.asStateFlow()
 
+    // Export By Grade & Subject Modal states
+    private val _showExportModal = MutableStateFlow(false)
+    val showExportModal = _showExportModal.asStateFlow()
+
+    private val _exportModalFormat = MutableStateFlow("PDF") // "PDF" or "EXCEL"
+    val exportModalFormat = _exportModalFormat.asStateFlow()
+
     init {
         viewModelScope.launch {
             repository.prePopulateIfEmpty()
@@ -121,6 +128,14 @@ class GradeViewModel(
     val allDatabaseStudents: StateFlow<List<StudentGradeEntity>> = repository.getAllStudents()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allDistinctSubjects: StateFlow<List<String>> = combine(
+        repository.getAllDistinctSubjects(),
+        schoolInfo
+    ) { dbSubjects, info ->
+        val defaults = listOf("أحياء", "لغة عربية", "رياضيات", "فيزياء", "كيمياء", "قرآن كريم", "تربية إسلامية", "لغة إنجليزية", "علوم", "اجتماعيات", "حاسوب")
+        (listOf(info.defaultSubject) + dbSubjects + defaults).filter { it.isNotBlank() }.distinct()
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), listOf("أحياء", "لغة عربية", "رياضيات"))
+
     // Search query for semester outcome lookup
     private val _semesterSearchQuery = MutableStateFlow("")
     val semesterSearchQuery = _semesterSearchQuery.asStateFlow()
@@ -137,12 +152,22 @@ class GradeViewModel(
         _finalOutcomeSearchQuery.value = query
     }
 
-    // Calculate Semester Outcomes for all students in a semester
+    // Selected Subject filter for Final Outcomes screen (null means all subjects)
+    private val _finalOutcomeSubjectFilter = MutableStateFlow<String?>(null)
+    val finalOutcomeSubjectFilter = _finalOutcomeSubjectFilter.asStateFlow()
+
+    fun setFinalOutcomeSubjectFilter(subject: String?) {
+        _finalOutcomeSubjectFilter.value = subject
+    }
+
+    // Calculate Semester Outcomes for all students in a semester - isolated strictly by Subject + Section
     fun getSemesterOutcomes(allGrades: List<StudentGradeEntity>, semester: Int): List<StudentSemesterOutcome> {
         val semGrades = allGrades.filter { it.semester == semester }
-        val groupedByName = semGrades.groupBy { it.studentName.trim() }
+        // Group by combination of (Student Name, Subject, Section)
+        val grouped = semGrades.groupBy { Triple(it.studentName.trim(), it.subject.trim(), it.section.trim()) }
 
-        return groupedByName.map { (studentName, records) ->
+        return grouped.map { (key, records) ->
+            val (studentName, subject, section) = key
             val sortedRecords = records.sortedBy { it.month }
             var m1Record = records.find { it.month.contains("الأول") || it.month.contains("1") || it.month.contains("محرم") }
             var m2Record = records.find { it.month.contains("الثاني") || it.month.contains("2") || it.month.contains("صفر") }
@@ -181,38 +206,38 @@ class GradeViewModel(
                 )
             }
 
-            val firstRec = records.firstOrNull()
             StudentSemesterOutcome(
                 studentName = studentName,
-                section = firstRec?.section ?: "",
-                subject = firstRec?.subject ?: "",
+                section = section,
+                subject = subject,
                 semester = semester,
                 month1 = m1Summary,
                 month2 = m2Summary,
                 month3 = m3Summary,
                 extraMonths = extraSummaries
             )
-        }.sortedBy { it.studentName }
+        }.sortedWith(compareBy({ it.subject }, { it.studentName }))
     }
 
-    // Calculate Final Outcomes (الفصل الأول + الفصل الثاني)
+    // Calculate Final Outcomes (الفصل الأول + الفصل الثاني) - strictly separated by Subject
     fun getFinalOutcomes(allGrades: List<StudentGradeEntity>): List<StudentFinalOutcome> {
         val sem1Outcomes = getSemesterOutcomes(allGrades, 1)
         val sem2Outcomes = getSemesterOutcomes(allGrades, 2)
 
-        val allNames = (sem1Outcomes.map { it.studentName } + sem2Outcomes.map { it.studentName }).distinct()
+        val allKeys = (sem1Outcomes.map { Triple(it.studentName, it.subject, it.section) } +
+                sem2Outcomes.map { Triple(it.studentName, it.subject, it.section) }).distinct()
 
-        return allNames.map { name ->
-            val s1 = sem1Outcomes.find { it.studentName == name }
-            val s2 = sem2Outcomes.find { it.studentName == name }
+        return allKeys.map { (name, subj, sec) ->
+            val s1 = sem1Outcomes.find { it.studentName == name && it.subject == subj && it.section == sec }
+            val s2 = sem2Outcomes.find { it.studentName == name && it.subject == subj && it.section == sec }
             StudentFinalOutcome(
                 studentName = name,
-                section = s1?.section ?: s2?.section ?: "",
-                subject = s1?.subject ?: s2?.subject ?: "",
+                section = sec,
+                subject = subj,
                 sem1Data = s1,
                 sem2Data = s2
             )
-        }.sortedBy { it.studentName }
+        }.sortedWith(compareBy({ it.subject }, { it.studentName }))
     }
 
     fun navigateTo(screenId: Int) {
@@ -345,7 +370,7 @@ class GradeViewModel(
                 }
             }
 
-            val sem = if (_currentScreen.value == 2) 2 else 1
+            val sem = if (_currentScreen.value == 2 || _currentScreen.value == 4) 2 else 1
             val nextOrder = order ?: ((currentStudents.value.maxOfOrNull { it.studentOrder } ?: 0) + 1)
 
             val entity = StudentGradeEntity(
@@ -364,12 +389,67 @@ class GradeViewModel(
 
             if (id == 0L) {
                 repository.insertStudent(entity)
-                _userMessage.emit("تم إضافة الطالب ${entity.studentName} بنجاح")
+                _userMessage.emit("تم إضافة الطالب ${entity.studentName} في مادة ${_selectedSubject.value} بنجاح")
             } else {
                 repository.updateStudent(entity)
                 _userMessage.emit("تم تعديل درجات الطالب ${entity.studentName}")
             }
             closeAddStudentDialog()
+        }
+    }
+
+    fun setSubjectAndSave(subject: String) {
+        val clean = subject.trim()
+        if (clean.isNotBlank()) {
+            _selectedSubject.value = clean
+            val currentInfo = schoolInfo.value
+            val updatedInfo = currentInfo.copy(defaultSubject = clean)
+            repository.saveSchoolInfo(updatedInfo)
+            viewModelScope.launch {
+                _userMessage.emit("تم تعيين المادة: $clean")
+            }
+        }
+    }
+
+    fun copyRosterFromPrevious(sourceSubject: String? = null) {
+        viewModelScope.launch {
+            val sem = if (_currentScreen.value == 2 || _currentScreen.value == 4) 2 else 1
+            val currentList = currentStudents.value
+            if (currentList.isNotEmpty()) {
+                _userMessage.emit("يوجد طلاب مسجلين بالفعل في هذه المادة لهذا الشهر")
+                return@launch
+            }
+            val allSemStudents = allSemesterStudents.value
+            val sourceStudents = if (sourceSubject != null && sourceSubject.isNotBlank()) {
+                allSemStudents.filter { it.subject == sourceSubject && it.section == _selectedSection.value }
+            } else {
+                allSemStudents.filter { it.section == _selectedSection.value }
+            }
+
+            val distinctNames = sourceStudents.map { it.studentName.trim() to it.studentOrder }.distinctBy { it.first }
+            if (distinctNames.isEmpty()) {
+                _userMessage.emit("لا توجد كشوفات سابقة لنفس الشعبة لنسخ أسماء الطلاب منها")
+                return@launch
+            }
+
+            var orderCounter = 1
+            val newEntities = distinctNames.map { (name, _) ->
+                StudentGradeEntity(
+                    id = 0L,
+                    semester = sem,
+                    month = _selectedMonth.value,
+                    section = _selectedSection.value,
+                    subject = _selectedSubject.value,
+                    studentOrder = orderCounter++,
+                    studentName = name,
+                    attendance = 0.0,
+                    homework = 0.0,
+                    oral = 0.0,
+                    written = 0.0
+                )
+            }
+            repository.insertStudents(newEntities)
+            _userMessage.emit("تم استيراد ${newEntities.size} طالب إلى مادة ${_selectedSubject.value} بنجاح")
         }
     }
 
@@ -438,6 +518,109 @@ class GradeViewModel(
             _userMessage.emit("تمت إعادة ضبط المصنع ومسح كافة البيانات")
             closeResetDialog()
             _currentScreen.value = 0
+        }
+    }
+
+    fun openExportModal(format: String = "PDF") {
+        _exportModalFormat.value = format
+        _showExportModal.value = true
+    }
+
+    fun closeExportModal() {
+        _showExportModal.value = false
+    }
+
+    fun exportCustomGradeSubject(
+        context: Context,
+        format: String,
+        gradeLevel: String,
+        subject: String,
+        semester: Int,
+        month: String,
+        section: String
+    ) {
+        viewModelScope.launch {
+            val all = allDatabaseStudents.value
+            val filtered = all.filter {
+                it.semester == semester &&
+                it.subject == subject &&
+                it.month == month &&
+                (section.isBlank() || it.section == section)
+            }.sortedWith(compareBy({ it.studentOrder }, { it.id }))
+
+            val targetStudents = if (filtered.isNotEmpty()) {
+                filtered
+            } else {
+                // If not yet populated for this exact subject/month, copy roster of students in that semester
+                val roster = all.filter { it.semester == semester && (section.isBlank() || it.section == section) }
+                    .distinctBy { it.studentName }
+                if (roster.isNotEmpty()) {
+                    roster.mapIndexed { idx, st ->
+                        StudentGradeEntity(
+                            semester = semester,
+                            month = month,
+                            section = if (section.isNotBlank()) section else st.section,
+                            subject = subject,
+                            studentOrder = idx + 1,
+                            studentName = st.studentName,
+                            attendance = 0.0,
+                            homework = 0.0,
+                            oral = 0.0,
+                            written = 0.0,
+                            notes = ""
+                        )
+                    }
+                } else {
+                    emptyList()
+                }
+            }
+
+            if (targetStudents.isEmpty()) {
+                _userMessage.emit("لا توجد بيانات أو أسماء طلاب مسجلة لـ ($gradeLevel - مادة: $subject)")
+                return@launch
+            }
+
+            val customSchoolInfo = schoolInfo.value.copy(
+                gradeLevels = gradeLevel,
+                defaultSubject = subject
+            )
+            val targetSection = if (section.isNotBlank()) section else targetStudents.firstOrNull()?.section ?: "أ"
+
+            if (format.equals("EXCEL", ignoreCase = true)) {
+                val file = ExcelExporter.generateClassSheetCsv(
+                    context = context,
+                    schoolInfo = customSchoolInfo,
+                    semester = semester,
+                    month = month,
+                    section = targetSection,
+                    subject = subject,
+                    students = targetStudents
+                )
+                if (file != null) {
+                    PdfExporter.shareFile(context, file, "text/csv", "كشف درجات $gradeLevel - مادة $subject - Excel")
+                    _userMessage.emit("تم تصدير كشف Excel لـ $gradeLevel (مادة: $subject) بنجاح")
+                    closeExportModal()
+                } else {
+                    _userMessage.emit("تعذر إنشاء ملف Excel")
+                }
+            } else {
+                val file = PdfExporter.generateClassSheetPdf(
+                    context = context,
+                    schoolInfo = customSchoolInfo,
+                    semester = semester,
+                    month = month,
+                    section = targetSection,
+                    subject = subject,
+                    students = targetStudents
+                )
+                if (file != null) {
+                    PdfExporter.shareFile(context, file, "application/pdf", "كشف درجات $gradeLevel - مادة $subject")
+                    _userMessage.emit("تم تصدير كشف PDF لـ $gradeLevel (مادة: $subject) بنجاح")
+                    closeExportModal()
+                } else {
+                    _userMessage.emit("تعذر إنشاء ملف PDF")
+                }
+            }
         }
     }
 

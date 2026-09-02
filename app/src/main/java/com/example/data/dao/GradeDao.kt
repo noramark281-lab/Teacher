@@ -37,6 +37,9 @@ interface GradeDao {
     @Query("SELECT DISTINCT subject FROM student_grades WHERE semester = :semester ORDER BY subject ASC")
     fun getDistinctSubjects(semester: Int): Flow<List<String>>
 
+    @Query("SELECT DISTINCT subject FROM student_grades ORDER BY subject ASC")
+    fun getAllDistinctSubjects(): Flow<List<String>>
+
     @Query("SELECT * FROM student_grades WHERE id = :id LIMIT 1")
     suspend fun getStudentById(id: Long): StudentGradeEntity?
 

@@ -408,7 +408,7 @@ fun ClassSelectionScreen(
                         } else {
                             items(
                                 items = filteredOutcomes,
-                                key = { "search_${it.studentName}" },
+                                key = { "search_${it.studentName}_${it.subject}_${it.section}" },
                                 span = { GridItemSpan(maxLineSpan) }
                             ) { res ->
                                 SemesterStudentOutcomeResultCard(

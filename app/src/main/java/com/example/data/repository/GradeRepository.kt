@@ -47,8 +47,16 @@ class GradeRepository(
         return gradeDao.getDistinctSubjects(semester)
     }
 
+    fun getAllDistinctSubjects(): Flow<List<String>> {
+        return gradeDao.getAllDistinctSubjects()
+    }
+
     suspend fun insertStudent(student: StudentGradeEntity): Long = withContext(Dispatchers.IO) {
         gradeDao.insertStudent(student)
+    }
+
+    suspend fun insertStudents(students: List<StudentGradeEntity>) = withContext(Dispatchers.IO) {
+        gradeDao.insertStudents(students)
     }
 
     suspend fun updateStudent(student: StudentGradeEntity) = withContext(Dispatchers.IO) {

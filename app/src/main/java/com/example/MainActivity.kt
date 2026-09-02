@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import com.example.ui.components.AddEditStudentDialog
 import com.example.ui.components.BackupRestoreDialog
 import com.example.ui.components.EditSchoolInfoDialog
+import com.example.ui.components.ExportByGradeAndSubjectDialog
 import com.example.ui.components.FactoryResetDialog
 import com.example.ui.components.SendClassSheetDialog
 import com.example.ui.components.SendStudentReportDialog
@@ -71,6 +72,10 @@ fun MainAppContent(viewModel: GradeViewModel) {
   val editingStudent by viewModel.editingStudent.collectAsState()
   val sendingStudent by viewModel.sendingStudent.collectAsState()
   val showSendClassDialog by viewModel.showSendClassDialog.collectAsState()
+  val showExportModal by viewModel.showExportModal.collectAsState()
+  val exportModalFormat by viewModel.exportModalFormat.collectAsState()
+  val allDistinctSubjects by viewModel.allDistinctSubjects.collectAsState()
+  val allDatabaseStudents by viewModel.allDatabaseStudents.collectAsState()
   val selectedMonth by viewModel.selectedMonth.collectAsState()
   val selectedSection by viewModel.selectedSection.collectAsState()
   val selectedSubject by viewModel.selectedSubject.collectAsState()
@@ -188,6 +193,31 @@ fun MainAppContent(viewModel: GradeViewModel) {
             viewModel.exportClassExcel(context)
           }
           viewModel.closeSendClassDialog()
+        }
+      )
+    }
+
+    if (showExportModal) {
+      ExportByGradeAndSubjectDialog(
+        exportFormat = exportModalFormat,
+        schoolInfo = schoolInfo,
+        allDistinctSubjects = allDistinctSubjects,
+        allStudents = allDatabaseStudents,
+        onDismiss = { viewModel.closeExportModal() },
+        onExport = { format, gradeLevel, subject, semester, month, section ->
+          viewModel.exportCustomGradeSubject(
+            context = context,
+            format = format,
+            gradeLevel = gradeLevel,
+            subject = subject,
+            semester = semester,
+            month = month,
+            section = section
+          )
+        },
+        onNavigateToClass = { gradeLevel, semester, subject ->
+          viewModel.selectGradeLevelAndOpenSemester(gradeLevel, semester)
+          viewModel.setSelectedSubject(subject)
         }
       )
     }

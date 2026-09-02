@@ -27,13 +27,16 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LockClock
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.TableChart
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -95,9 +98,12 @@ fun SemesterGradeScreen(
     val selectedMonth by viewModel.selectedMonth.collectAsState()
     val selectedSection by viewModel.selectedSection.collectAsState()
     val selectedSubject by viewModel.selectedSubject.collectAsState()
+    val allDistinctSubjects by viewModel.allDistinctSubjects.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
     var showNewMonthDialog by remember { mutableStateOf(false) }
+    var showSubjectDialog by remember { mutableStateOf(false) }
+    var newSubjectInput by remember { mutableStateOf("") }
 
     // Filter students by search query if present
     val filteredStudents = remember(students, searchQuery) {
@@ -128,7 +134,7 @@ fun SemesterGradeScreen(
                                 color = Color.White
                             )
                             Text(
-                                text = "${schoolInfo.schoolName} | $selectedSubject",
+                                text = "${schoolInfo.schoolName} | مادة: $selectedSubject",
                                 fontSize = 12.sp,
                                 color = Color(0xFFE2E8F0)
                             )
@@ -204,10 +210,11 @@ fun SemesterGradeScreen(
                     .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Info Summary Card
+                // Info Summary Card (Two Spacious Rows so nothing is cut off)
                 GoldBorderCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    // Row 1: Grade Level & Subject
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -217,49 +224,73 @@ fun SemesterGradeScreen(
                             prefix = "الصف:",
                             value = schoolInfo.gradeLevels,
                             onClick = { viewModel.navigateBackFromSemesterGrade(semester) },
-                            modifier = Modifier.testTag("filter_grade_level_field")
+                            modifier = Modifier.weight(1.1f).testTag("filter_grade_level_field")
                         )
 
-                        DottedInfoField(
-                            prefix = "الشهر:",
-                            value = selectedMonth,
-                            onClick = { showNewMonthDialog = true },
-                            modifier = Modifier.testTag("filter_month_field")
-                        )
-
-                        DottedInfoField(
-                            prefix = "الشعبة:",
-                            value = selectedSection,
-                            onClick = { viewModel.openEditSchoolDialog() },
-                            modifier = Modifier.testTag("filter_section_field")
-                        )
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         DottedInfoField(
                             prefix = "المادة:",
                             value = selectedSubject,
-                            onClick = { viewModel.openEditSchoolDialog() },
-                            modifier = Modifier.testTag("filter_subject_field")
+                            onClick = { showSubjectDialog = true },
+                            modifier = Modifier.weight(1f).testTag("filter_subject_field")
                         )
                     }
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    // Month Switching / Closing bar
+                    // Row 2: Month & Section
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        DottedInfoField(
+                            prefix = "الشهر:",
+                            value = selectedMonth,
+                            onClick = { showNewMonthDialog = true },
+                            modifier = Modifier.weight(1.1f).testTag("filter_month_field")
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        DottedInfoField(
+                            prefix = "الشعبة:",
+                            value = selectedSection,
+                            onClick = { viewModel.openEditSchoolDialog() },
+                            modifier = Modifier.weight(1f).testTag("filter_section_field")
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Month Switching / Closing & Edit Cliché bar
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Change / Choose Subject button
+                        OutlinedButton(
+                            onClick = { showSubjectDialog = true },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f).testTag("btn_change_subject_quick")
+                        ) {
+                            Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("تغيير المادة", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
                         // Close Month & Open New Month button
                         Button(
                             onClick = { showNewMonthDialog = true },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB45309)),
                             shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.weight(1f).testTag("btn_close_month_new")
+                            modifier = Modifier.weight(1.3f).testTag("btn_close_month_new")
                         ) {
                             Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("إغلاق الشهر وبدء شهر جديد", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("إغلاق وبدء شهر جديد", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                         }
 
                         // Edit Info
@@ -269,12 +300,101 @@ fun SemesterGradeScreen(
                         ) {
                             Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("تعديل الكليشة", fontSize = 12.sp)
+                            Text("الكليشة", fontSize = 12.sp)
                         }
                     }
                 }
 
-                // Month Tabs (Quick Switcher)
+                // 1. Subject Selector Bar (شريط اختيار المادة لفصل درجات المواد تماماً)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White)
+                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.MenuBook,
+                                contentDescription = null,
+                                tint = Color(0xFF1E40AF),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "المادة الحالية:",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFFEFF6FF))
+                                    .border(1.dp, Color(0xFFBFDBFE), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = selectedSubject,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF1E40AF)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "+ مادة أخرى",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF2563EB),
+                            modifier = Modifier
+                                .clickable { showSubjectDialog = true }
+                                .padding(4.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        allDistinctSubjects.forEach { subj ->
+                            val isSelected = subj == selectedSubject
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (isSelected) Color(0xFF1E40AF) else Color(0xFFF1F5F9))
+                                    .border(
+                                        1.dp,
+                                        if (isSelected) Color(0xFF1E40AF) else Color(0xFFCBD5E1),
+                                        RoundedCornerShape(16.dp)
+                                    )
+                                    .clickable { viewModel.setSubjectAndSave(subj) }
+                                    .padding(horizontal = 12.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = subj,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Color.White else Color(0xFF334155)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 2. Month & Section Tabs (Quick Switcher)
                 val availableMonths = listOf("الشهر الأول", "الشهر الثاني", "الشهر الثالث", "الشهر الرابع")
                 Row(
                     modifier = Modifier
@@ -330,7 +450,7 @@ fun SemesterGradeScreen(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { viewModel.setSearchQuery(it) },
-                    placeholder = { Text("بحث عن اسم طالب...") },
+                    placeholder = { Text("بحث عن اسم طالب في مادة ($selectedSubject)...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
@@ -343,6 +463,63 @@ fun SemesterGradeScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("student_search_input")
                 )
+
+                // If no students in this subject, show a helper to copy roster from another subject
+                if (students.isEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "كشف مادة: $selectedSubject فارغ لهذا الشهر",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "يمكنك إضافة الطلاب يدوياً أو استيراد أسماء طلاب الشعبة ($selectedSection) دفعة واحدة",
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B),
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = { viewModel.openAddStudentDialog(null) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = themeColor),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("إضافة طالب", fontSize = 12.sp)
+                                }
+
+                                OutlinedButton(
+                                    onClick = { viewModel.copyRosterFromPrevious() },
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.weight(1.3f)
+                                ) {
+                                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("استيراد أسماء الطلاب", fontSize = 11.5.sp)
+                                }
+                            }
+                        }
+                    }
+                }
 
                 // Grade Table
                 GradeTable(
@@ -464,6 +641,122 @@ fun SemesterGradeScreen(
             onDismiss = { showNewMonthDialog = false },
             onConfirm = { newMonthName ->
                 viewModel.closeMonthAndStartNew(newMonthName)
+            }
+        )
+    }
+
+    if (showSubjectDialog) {
+        var customSubject by remember { mutableStateOf("") }
+        val quickSubjects = listOf(
+            "لغة عربية", "رياضيات", "أحياء", "فيزياء", "كيمياء",
+            "قرآن كريم", "تربية إسلامية", "لغة إنجليزية", "علوم", "اجتماعيات", "حاسوب"
+        )
+
+        AlertDialog(
+            onDismissRequest = { showSubjectDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.MenuBook,
+                        contentDescription = null,
+                        tint = Color(0xFF1E40AF),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("تحديد / اختيار المادة", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "المادة الحالية: $selectedSubject",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E40AF)
+                    )
+
+                    Text(
+                        text = "اختر مادة سريعة:",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF64748B)
+                    )
+
+                    // Quick subject chips
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        quickSubjects.forEach { s ->
+                            val isCurrent = s == selectedSubject
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (isCurrent) Color(0xFF1E40AF) else Color(0xFFEFF6FF))
+                                    .border(1.dp, Color(0xFF93C5FD), RoundedCornerShape(16.dp))
+                                    .clickable {
+                                        viewModel.setSubjectAndSave(s)
+                                        showSubjectDialog = false
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = s,
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isCurrent) Color.White else Color(0xFF1E40AF)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "أو اكتب اسم مادة مخصصة:",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF64748B)
+                    )
+
+                    OutlinedTextField(
+                        value = customSubject,
+                        onValueChange = { customSubject = it },
+                        placeholder = { Text("مثال: لغة عربية، تلاوة وتجويد...") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth().testTag("custom_subject_input")
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (customSubject.isNotBlank()) {
+                            viewModel.setSubjectAndSave(customSubject.trim())
+                        }
+                        showSubjectDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E40AF)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("تعيين المادة")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showSubjectDialog = false },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("إلغاء")
+                }
             }
         )
     }

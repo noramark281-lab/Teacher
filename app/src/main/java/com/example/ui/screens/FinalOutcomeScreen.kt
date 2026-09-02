@@ -9,6 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -98,18 +100,26 @@ fun FinalOutcomeScreen(
     val schoolInfo by viewModel.schoolInfo.collectAsState()
     val allStudents by viewModel.allDatabaseStudents.collectAsState()
     val searchQuery by viewModel.finalOutcomeSearchQuery.collectAsState()
+    val subjectFilter by viewModel.finalOutcomeSubjectFilter.collectAsState()
     val focusManager = LocalFocusManager.current
 
     val finalOutcomes: List<StudentFinalOutcome> = remember(allStudents) {
         viewModel.getFinalOutcomes(allStudents)
     }
 
-    val filteredOutcomes: List<StudentFinalOutcome> = remember(finalOutcomes, searchQuery) {
-        if (searchQuery.isBlank()) {
-            finalOutcomes
-        } else {
-            finalOutcomes.filter { it.studentName.contains(searchQuery.trim(), ignoreCase = true) }
+    val availableSubjects = remember(finalOutcomes) {
+        finalOutcomes.map { it.subject }.filter { it.isNotBlank() }.distinct()
+    }
+
+    val filteredOutcomes: List<StudentFinalOutcome> = remember(finalOutcomes, searchQuery, subjectFilter) {
+        var list = finalOutcomes
+        if (!subjectFilter.isNullOrBlank()) {
+            list = list.filter { it.subject == subjectFilter }
         }
+        if (searchQuery.isNotBlank()) {
+            list = list.filter { it.studentName.contains(searchQuery.trim(), ignoreCase = true) }
+        }
+        list
     }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -241,7 +251,7 @@ fun FinalOutcomeScreen(
                         }
                     }
 
-                    // 2. Search Input Box
+                    // 2. Search Input Box & Subject Filter
                     item {
                         Card(
                             modifier = Modifier
@@ -252,47 +262,107 @@ fun FinalOutcomeScreen(
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             border = BorderStroke(1.dp, Color(0xFFCBD5E1))
                         ) {
-                            OutlinedTextField(
-                                value = searchQuery,
-                                onValueChange = { viewModel.setFinalOutcomeSearchQuery(it) },
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(8.dp)
-                                    .testTag("input_search_final_outcome"),
-                                placeholder = {
-                                    Text(
-                                        text = "اكتب اسم الطالب للبحث عن محصلته النهائية...",
-                                        fontSize = 13.5.sp,
-                                        color = Color(0xFF94A3B8)
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = "بحث",
-                                        tint = Color(0xFF1E3A8A)
-                                    )
-                                },
-                                trailingIcon = {
-                                    if (searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { viewModel.setFinalOutcomeSearchQuery("") }) {
-                                            Icon(
-                                                imageVector = Icons.Default.Clear,
-                                                contentDescription = "مسح",
-                                                tint = Color(0xFF64748B)
+                                    .padding(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = searchQuery,
+                                    onValueChange = { viewModel.setFinalOutcomeSearchQuery(it) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("input_search_final_outcome"),
+                                    placeholder = {
+                                        Text(
+                                            text = if (subjectFilter.isNullOrBlank()) "اكتب اسم الطالب للبحث عن محصلته النهائية..." else "بحث عن طالب في مادة ($subjectFilter)...",
+                                            fontSize = 13.5.sp,
+                                            color = Color(0xFF94A3B8)
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.Search,
+                                            contentDescription = "بحث",
+                                            tint = Color(0xFF1E3A8A)
+                                        )
+                                    },
+                                    trailingIcon = {
+                                        if (searchQuery.isNotEmpty()) {
+                                            IconButton(onClick = { viewModel.setFinalOutcomeSearchQuery("") }) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Clear,
+                                                    contentDescription = "مسح",
+                                                    tint = Color(0xFF64748B)
+                                                )
+                                            }
+                                        }
+                                    },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = Color(0xFF1E3A8A),
+                                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                                    ),
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                    keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() })
+                                )
+
+                                // Subject Filter Chips
+                                if (availableSubjects.size > 1 || (availableSubjects.isNotEmpty() && !subjectFilter.isNullOrBlank())) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "تصفية بالمادة:",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF64748B)
+                                        )
+
+                                        // All subjects chip
+                                        val isAllSelected = subjectFilter.isNullOrBlank()
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(14.dp))
+                                                .background(if (isAllSelected) Color(0xFF1E3A8A) else Color(0xFFF1F5F9))
+                                                .clickable { viewModel.setFinalOutcomeSubjectFilter(null) }
+                                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                        ) {
+                                            Text(
+                                                text = "جميع المواد",
+                                                fontSize = 11.5.sp,
+                                                fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (isAllSelected) Color.White else Color(0xFF334155)
                                             )
                                         }
+
+                                        availableSubjects.forEach { subj ->
+                                            val isSelected = subj == subjectFilter
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(14.dp))
+                                                    .background(if (isSelected) Color(0xFF1E3A8A) else Color(0xFFEFF6FF))
+                                                    .border(1.dp, if (isSelected) Color(0xFF1E3A8A) else Color(0xFFBFDBFE), RoundedCornerShape(14.dp))
+                                                    .clickable { viewModel.setFinalOutcomeSubjectFilter(subj) }
+                                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                                            ) {
+                                                Text(
+                                                    text = subj,
+                                                    fontSize = 11.5.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                    color = if (isSelected) Color.White else Color(0xFF1E40AF)
+                                                )
+                                            }
+                                        }
                                     }
-                                },
-                                singleLine = true,
-                                shape = RoundedCornerShape(10.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Color(0xFF1E3A8A),
-                                    unfocusedBorderColor = Color(0xFFE2E8F0)
-                                ),
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() })
-                            )
+                                }
+                            }
                         }
                     }
 
@@ -312,13 +382,26 @@ fun FinalOutcomeScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF334155)
                             )
-                            if (searchQuery.isNotBlank()) {
-                                Text(
-                                    text = "بحث عن: \"$searchQuery\"",
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF1E40AF),
-                                    fontWeight = FontWeight.Medium
-                                )
+                            if (searchQuery.isNotBlank() || !subjectFilter.isNullOrBlank()) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (!subjectFilter.isNullOrBlank()) {
+                                        Text(
+                                            text = "مادة: $subjectFilter",
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF047857),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                    }
+                                    if (searchQuery.isNotBlank()) {
+                                        Text(
+                                            text = "\"$searchQuery\"",
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF1E40AF),
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -342,7 +425,7 @@ fun FinalOutcomeScreen(
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = if (searchQuery.isBlank()) "لا توجد درجات مسجلة للطلاب بعد" else "لا توجد نتائج مطابقة لاسم الطالب المبحوث عنه",
+                                        text = if (searchQuery.isBlank() && subjectFilter.isNullOrBlank()) "لا توجد درجات مسجلة للطلاب بعد" else "لا توجد نتائج مطابقة لبحثك",
                                         fontSize = 14.sp,
                                         color = Color(0xFF64748B),
                                         fontWeight = FontWeight.Medium
@@ -351,7 +434,7 @@ fun FinalOutcomeScreen(
                             }
                         }
                     } else {
-                        items(items = filteredOutcomes, key = { it.studentName }) { item ->
+                        items(items = filteredOutcomes, key = { "${it.studentName}_${it.subject}_${it.section}" }) { item ->
                             StudentFinalOutcomeCard(
                                 item = item,
                                 modifier = Modifier.widthIn(max = 600.dp)
