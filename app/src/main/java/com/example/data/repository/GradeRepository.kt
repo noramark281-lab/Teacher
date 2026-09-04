@@ -23,28 +23,36 @@ class GradeRepository(
     private val _schoolInfoState = MutableStateFlow(loadSchoolInfo())
     val schoolInfoState = _schoolInfoState.asStateFlow()
 
-    fun getStudents(semester: Int, month: String, section: String, subject: String): Flow<List<StudentGradeEntity>> {
-        return gradeDao.getStudents(semester, month, section, subject)
+    fun getStudents(gradeLevel: String, semester: Int, month: String, section: String, subject: String): Flow<List<StudentGradeEntity>> {
+        return gradeDao.getStudents(gradeLevel, semester, month, section, subject)
     }
 
-    fun getAllStudentsForSemester(semester: Int): Flow<List<StudentGradeEntity>> {
-        return gradeDao.getAllStudentsForSemester(semester)
+    fun getAllStudentsForSemester(gradeLevel: String, semester: Int): Flow<List<StudentGradeEntity>> {
+        return gradeDao.getAllStudentsForSemester(gradeLevel, semester)
+    }
+
+    fun getAllStudentsForSemesterGlobal(semester: Int): Flow<List<StudentGradeEntity>> {
+        return gradeDao.getAllStudentsForSemesterGlobal(semester)
+    }
+
+    fun getAllStudentsForGrade(gradeLevel: String): Flow<List<StudentGradeEntity>> {
+        return gradeDao.getAllStudentsForGrade(gradeLevel)
     }
 
     fun getAllStudents(): Flow<List<StudentGradeEntity>> {
         return gradeDao.getAllStudents()
     }
 
-    fun getDistinctMonths(semester: Int): Flow<List<String>> {
-        return gradeDao.getDistinctMonths(semester)
+    fun getDistinctMonths(gradeLevel: String, semester: Int): Flow<List<String>> {
+        return gradeDao.getDistinctMonths(gradeLevel, semester)
     }
 
-    fun getDistinctSections(semester: Int): Flow<List<String>> {
-        return gradeDao.getDistinctSections(semester)
+    fun getDistinctSections(gradeLevel: String, semester: Int): Flow<List<String>> {
+        return gradeDao.getDistinctSections(gradeLevel, semester)
     }
 
-    fun getDistinctSubjects(semester: Int): Flow<List<String>> {
-        return gradeDao.getDistinctSubjects(semester)
+    fun getDistinctSubjects(gradeLevel: String, semester: Int): Flow<List<String>> {
+        return gradeDao.getDistinctSubjects(gradeLevel, semester)
     }
 
     fun getAllDistinctSubjects(): Flow<List<String>> {
@@ -122,6 +130,7 @@ class GradeRepository(
         if (!isPopulated) {
             val sampleStudentsSem1 = listOf(
                 StudentGradeEntity(
+                    gradeLevel = "الصف الأول الابتدائي",
                     semester = 1,
                     month = "الشهر الأول",
                     section = "أ",
@@ -134,6 +143,7 @@ class GradeRepository(
                     written = 19.0
                 ),
                 StudentGradeEntity(
+                    gradeLevel = "الصف الأول الابتدائي",
                     semester = 1,
                     month = "الشهر الأول",
                     section = "أ",
@@ -146,6 +156,7 @@ class GradeRepository(
                     written = 17.5
                 ),
                 StudentGradeEntity(
+                    gradeLevel = "الصف الأول الابتدائي",
                     semester = 1,
                     month = "الشهر الأول",
                     section = "أ",
@@ -158,6 +169,7 @@ class GradeRepository(
                     written = 18.0
                 ),
                 StudentGradeEntity(
+                    gradeLevel = "الصف الأول الابتدائي",
                     semester = 1,
                     month = "الشهر الأول",
                     section = "أ",
@@ -170,6 +182,7 @@ class GradeRepository(
                     written = 15.0
                 ),
                 StudentGradeEntity(
+                    gradeLevel = "الصف الأول الابتدائي",
                     semester = 1,
                     month = "الشهر الأول",
                     section = "أ",
@@ -212,6 +225,7 @@ class GradeRepository(
         val array = JSONArray()
         for (s in students) {
             val obj = JSONObject().apply {
+                put("gradeLevel", s.gradeLevel)
                 put("semester", s.semester)
                 put("month", s.month)
                 put("section", s.section)
@@ -258,6 +272,7 @@ class GradeRepository(
                     val obj = array.getJSONObject(i)
                     list.add(
                         StudentGradeEntity(
+                            gradeLevel = obj.optString("gradeLevel", "الصف الأول الابتدائي"),
                             semester = obj.optInt("semester", 1),
                             month = obj.optString("month", "الشهر الأول"),
                             section = obj.optString("section", "أ"),

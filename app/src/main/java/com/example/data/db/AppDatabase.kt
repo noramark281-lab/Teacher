@@ -9,7 +9,7 @@ import com.example.data.model.StudentGradeEntity
 
 @Database(
     entities = [StudentGradeEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

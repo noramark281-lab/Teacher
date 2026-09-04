@@ -13,29 +13,43 @@ import kotlinx.coroutines.flow.Flow
 interface GradeDao {
     @Query("""
         SELECT * FROM student_grades 
-        WHERE semester = :semester AND month = :month AND section = :section AND subject = :subject 
+        WHERE gradeLevel = :gradeLevel AND semester = :semester AND month = :month AND section = :section AND subject = :subject 
         ORDER BY studentOrder ASC, id ASC
     """)
-    fun getStudents(semester: Int, month: String, section: String, subject: String): Flow<List<StudentGradeEntity>>
+    fun getStudents(gradeLevel: String, semester: Int, month: String, section: String, subject: String): Flow<List<StudentGradeEntity>>
+
+    @Query("""
+        SELECT * FROM student_grades 
+        WHERE gradeLevel = :gradeLevel AND semester = :semester 
+        ORDER BY month ASC, section ASC, studentOrder ASC
+    """)
+    fun getAllStudentsForSemester(gradeLevel: String, semester: Int): Flow<List<StudentGradeEntity>>
 
     @Query("""
         SELECT * FROM student_grades 
         WHERE semester = :semester 
-        ORDER BY month ASC, section ASC, studentOrder ASC
+        ORDER BY gradeLevel ASC, month ASC, section ASC, studentOrder ASC
     """)
-    fun getAllStudentsForSemester(semester: Int): Flow<List<StudentGradeEntity>>
+    fun getAllStudentsForSemesterGlobal(semester: Int): Flow<List<StudentGradeEntity>>
 
-    @Query("SELECT * FROM student_grades ORDER BY semester ASC, month ASC, section ASC, studentOrder ASC")
+    @Query("""
+        SELECT * FROM student_grades 
+        WHERE gradeLevel = :gradeLevel 
+        ORDER BY semester ASC, month ASC, section ASC, studentOrder ASC
+    """)
+    fun getAllStudentsForGrade(gradeLevel: String): Flow<List<StudentGradeEntity>>
+
+    @Query("SELECT * FROM student_grades ORDER BY gradeLevel ASC, semester ASC, month ASC, section ASC, studentOrder ASC")
     fun getAllStudents(): Flow<List<StudentGradeEntity>>
 
-    @Query("SELECT DISTINCT month FROM student_grades WHERE semester = :semester ORDER BY month ASC")
-    fun getDistinctMonths(semester: Int): Flow<List<String>>
+    @Query("SELECT DISTINCT month FROM student_grades WHERE gradeLevel = :gradeLevel AND semester = :semester ORDER BY month ASC")
+    fun getDistinctMonths(gradeLevel: String, semester: Int): Flow<List<String>>
 
-    @Query("SELECT DISTINCT section FROM student_grades WHERE semester = :semester ORDER BY section ASC")
-    fun getDistinctSections(semester: Int): Flow<List<String>>
+    @Query("SELECT DISTINCT section FROM student_grades WHERE gradeLevel = :gradeLevel AND semester = :semester ORDER BY section ASC")
+    fun getDistinctSections(gradeLevel: String, semester: Int): Flow<List<String>>
 
-    @Query("SELECT DISTINCT subject FROM student_grades WHERE semester = :semester ORDER BY subject ASC")
-    fun getDistinctSubjects(semester: Int): Flow<List<String>>
+    @Query("SELECT DISTINCT subject FROM student_grades WHERE gradeLevel = :gradeLevel AND semester = :semester ORDER BY subject ASC")
+    fun getDistinctSubjects(gradeLevel: String, semester: Int): Flow<List<String>>
 
     @Query("SELECT DISTINCT subject FROM student_grades ORDER BY subject ASC")
     fun getAllDistinctSubjects(): Flow<List<String>>
@@ -61,8 +75,8 @@ interface GradeDao {
     @Query("UPDATE student_grades SET attendance = 0, homework = 0, oral = 0, written = 0 WHERE id = :id")
     suspend fun clearStudentScores(id: Long)
 
-    @Query("DELETE FROM student_grades WHERE semester = :semester AND month = :month AND section = :section AND subject = :subject")
-    suspend fun deleteMonthSheet(semester: Int, month: String, section: String, subject: String)
+    @Query("DELETE FROM student_grades WHERE gradeLevel = :gradeLevel AND semester = :semester AND month = :month AND section = :section AND subject = :subject")
+    suspend fun deleteMonthSheet(gradeLevel: String, semester: Int, month: String, section: String, subject: String)
 
     @Query("DELETE FROM student_grades")
     suspend fun clearAllData()

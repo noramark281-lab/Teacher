@@ -246,19 +246,19 @@ fun GradeTable(
 
                             Spacer(modifier = Modifier.width(5.dp))
 
-                            // Delete / Clear marks button
+                            // Delete button (السلة) - Delete student completely with all grades
                             Box(
                                 modifier = Modifier
                                     .size(32.dp)
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(Color(0xFFEF4444))
-                                    .clickable { onClearScores(student) }
-                                    .testTag("clear_student_${student.id}"),
+                                    .clickable { onDeleteStudent(student) }
+                                    .testTag("delete_student_${student.id}"),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
-                                    contentDescription = "حذف درجات الطالب",
+                                    contentDescription = "حذف الطالب نهائياً مع درجاته",
                                     tint = Color.White,
                                     modifier = Modifier.size(16.dp)
                                 )

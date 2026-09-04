@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 data class StudentGradeEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val gradeLevel: String = "الصف الأول الابتدائي", // المرحلة والصف الدراسي (عزل تام بين الصفوف)
     val semester: Int, // 1 for الفصل الأول, 2 for الفصل الثاني
     val month: String, // e.g. "الشهر الأول", "الشهر الثاني", "محرم"
     val section: String, // e.g. "أ", "ب", "شعبة 1"
@@ -104,6 +105,7 @@ data class MonthGradeSummary(
 
 data class StudentSemesterOutcome(
     val studentName: String,
+    val gradeLevel: String = "",
     val section: String = "",
     val subject: String = "",
     val semester: Int = 1,
@@ -127,6 +129,7 @@ data class StudentSemesterOutcome(
 
 data class StudentFinalOutcome(
     val studentName: String,
+    val gradeLevel: String = "",
     val section: String = "",
     val subject: String = "",
     val sem1Data: StudentSemesterOutcome? = null,

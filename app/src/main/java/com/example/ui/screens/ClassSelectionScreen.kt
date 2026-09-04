@@ -47,6 +47,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -243,16 +249,20 @@ fun ClassSelectionScreen(
 
     val allStudents by viewModel.allDatabaseStudents.collectAsState()
     val searchQuery by viewModel.semesterSearchQuery.collectAsState()
+    var searchClassFilter by remember { mutableStateOf<String?>(null) }
 
     val semesterOutcomes: List<StudentSemesterOutcome> = remember(allStudents, semester) {
         viewModel.getSemesterOutcomes(allGrades = allStudents, semester = semester)
     }
 
-    val filteredOutcomes: List<StudentSemesterOutcome> = remember(semesterOutcomes, searchQuery) {
+    val filteredOutcomes: List<StudentSemesterOutcome> = remember(semesterOutcomes, searchQuery, searchClassFilter) {
         if (searchQuery.isBlank()) {
             emptyList<StudentSemesterOutcome>()
         } else {
-            semesterOutcomes.filter { it.studentName.contains(searchQuery.trim(), ignoreCase = true) }
+            semesterOutcomes.filter {
+                it.studentName.contains(searchQuery.trim(), ignoreCase = true) &&
+                (searchClassFilter == null || it.gradeLevel == searchClassFilter)
+            }
         }
     }
 
@@ -374,14 +384,40 @@ fun ClassSelectionScreen(
                                     unfocusedBorderColor = Color(0xFFE2E8F0)
                                 )
                             )
+
+                            // Quick filter by specific class
+                            LazyRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                item {
+                                    FilterChip(
+                                        selected = searchClassFilter == null,
+                                        onClick = { searchClassFilter = null },
+                                        label = { Text("جميع الصفوف", fontSize = 11.5.sp) }
+                                    )
+                                }
+                                items(GRADE_LEVELS_LIST) { item ->
+                                    FilterChip(
+                                        selected = searchClassFilter == item.title,
+                                        onClick = {
+                                            searchClassFilter = if (searchClassFilter == item.title) null else item.title
+                                        },
+                                        label = { Text(item.title, fontSize = 11.5.sp) }
+                                    )
+                                }
+                            }
                         }
                     }
 
                     // 2. Search Results if Query entered
                     if (searchQuery.isNotBlank()) {
+                        val filterLabel = if (searchClassFilter != null) "في $searchClassFilter" else "في $semesterTitle"
                         item(span = { GridItemSpan(maxLineSpan) }) {
                             Text(
-                                text = "نتائج البحث عن محصلة الطالب في $semesterTitle (${filteredOutcomes.size}):",
+                                text = "نتائج البحث عن محصلة الطالب $filterLabel (${filteredOutcomes.size}):",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF1E293B)
@@ -399,7 +435,7 @@ fun ClassSelectionScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "لم يتم العثور على طالب بهذا الاسم في $semesterTitle",
+                                        text = "لم يتم العثور على طالب بهذا الاسم $filterLabel",
                                         fontSize = 13.sp,
                                         color = Color(0xFF64748B)
                                     )
@@ -408,7 +444,7 @@ fun ClassSelectionScreen(
                         } else {
                             items(
                                 items = filteredOutcomes,
-                                key = { "search_${it.studentName}_${it.subject}_${it.section}" },
+                                key = { "search_${it.gradeLevel}_${it.studentName}_${it.subject}_${it.section}" },
                                 span = { GridItemSpan(maxLineSpan) }
                             ) { res ->
                                 SemesterStudentOutcomeResultCard(
@@ -535,9 +571,10 @@ fun SemesterStudentOutcomeResultCard(
                             color = Color(0xFF0F172A)
                         )
                         Text(
-                            text = "الشعبة: ${outcome.section} | المادة: ${outcome.subject}",
-                            fontSize = 11.sp,
-                            color = Color(0xFF64748B)
+                            text = "${outcome.gradeLevel} | الشعبة: ${outcome.section} | المادة: ${outcome.subject}",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = themeColor
                         )
                     }
                 }

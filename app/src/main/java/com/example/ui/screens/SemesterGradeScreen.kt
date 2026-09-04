@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LockClock
 import androidx.compose.material.icons.filled.MenuBook
@@ -104,6 +105,7 @@ fun SemesterGradeScreen(
     var showNewMonthDialog by remember { mutableStateOf(false) }
     var showSubjectDialog by remember { mutableStateOf(false) }
     var newSubjectInput by remember { mutableStateOf("") }
+    var studentToDelete by remember { mutableStateOf<StudentGradeEntity?>(null) }
 
     // Filter students by search query if present
     val filteredStudents = remember(students, searchQuery) {
@@ -541,7 +543,7 @@ fun SemesterGradeScreen(
                         viewModel.clearStudentScores(student)
                     },
                     onDeleteStudent = { student ->
-                        viewModel.deleteStudent(student)
+                        studentToDelete = student
                     }
                 )
 
@@ -754,6 +756,59 @@ fun SemesterGradeScreen(
                 OutlinedButton(
                     onClick = { showSubjectDialog = false },
                     shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("إلغاء")
+                }
+            }
+        )
+    }
+
+    if (studentToDelete != null) {
+        val target = studentToDelete!!
+        AlertDialog(
+            onDismissRequest = { studentToDelete = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = Color(0xFFDC2626),
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "حذف الطالب نهائياً",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    textAlign = TextAlign.Center
+                )
+            },
+            text = {
+                Text(
+                    text = "هل أنت متأكد من حذف الطالب (${target.studentName}) نهائياً؟\nسيتم حذف الاسم بالكامل مع كافة درجاته من ${schoolInfo.gradeLevels}.",
+                    fontSize = 13.5.sp,
+                    color = Color(0xFF334155),
+                    textAlign = TextAlign.Center
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteStudent(target)
+                        studentToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.testTag("confirm_delete_student_btn")
+                ) {
+                    Text("نعم، حذف نهائي")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { studentToDelete = null },
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.testTag("cancel_delete_student_btn")
                 ) {
                     Text("إلغاء")
                 }

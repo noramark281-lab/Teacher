@@ -100,29 +100,44 @@ class GradeViewModel(
     private val _exportModalFormat = MutableStateFlow("PDF") // "PDF" or "EXCEL"
     val exportModalFormat = _exportModalFormat.asStateFlow()
 
+    private val _selectedGradeLevel = MutableStateFlow("الصف الأول الابتدائي")
+    val selectedGradeLevel = _selectedGradeLevel.asStateFlow()
+
+    fun setSelectedGradeLevel(gradeLevel: String) {
+        _selectedGradeLevel.value = gradeLevel
+    }
+
     init {
         viewModelScope.launch {
             repository.prePopulateIfEmpty()
+        }
+        val info = schoolInfo.value
+        if (info.gradeLevels.isNotBlank()) {
+            _selectedGradeLevel.value = info.gradeLevels
         }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val currentStudents: StateFlow<List<StudentGradeEntity>> = combine(
+        _selectedGradeLevel,
         _currentScreen,
         _selectedMonth,
         _selectedSection,
         _selectedSubject
-    ) { sem, month, section, subject ->
+    ) { gradeLevel, sem, month, section, subject ->
         val actualSem = if (sem == 2 || sem == 4) 2 else 1
-        repository.getStudents(actualSem, month, section, subject)
+        repository.getStudents(gradeLevel, actualSem, month, section, subject)
     }.flatMapLatest { it }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allSemesterStudents: StateFlow<List<StudentGradeEntity>> = _currentScreen
-        .flatMapLatest { sem ->
-            val actualSem = if (sem == 2 || sem == 4) 2 else 1
-            repository.getAllStudentsForSemester(actualSem)
-        }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val allSemesterStudents: StateFlow<List<StudentGradeEntity>> = combine(
+        _selectedGradeLevel,
+        _currentScreen
+    ) { gradeLevel, sem ->
+        val actualSem = if (sem == 2 || sem == 4) 2 else 1
+        repository.getAllStudentsForSemester(gradeLevel, actualSem)
+    }.flatMapLatest { it }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allDatabaseStudents: StateFlow<List<StudentGradeEntity>> = repository.getAllStudents()
@@ -160,14 +175,19 @@ class GradeViewModel(
         _finalOutcomeSubjectFilter.value = subject
     }
 
-    // Calculate Semester Outcomes for all students in a semester - isolated strictly by Subject + Section
+    // Calculate Semester Outcomes for all students in a semester - isolated strictly by GradeLevel + Subject + Section
     fun getSemesterOutcomes(allGrades: List<StudentGradeEntity>, semester: Int): List<StudentSemesterOutcome> {
         val semGrades = allGrades.filter { it.semester == semester }
-        // Group by combination of (Student Name, Subject, Section)
-        val grouped = semGrades.groupBy { Triple(it.studentName.trim(), it.subject.trim(), it.section.trim()) }
+        // Group by combination of (GradeLevel, Student Name, Subject, Section)
+        val grouped = semGrades.groupBy { 
+            listOf(it.gradeLevel.trim(), it.studentName.trim(), it.subject.trim(), it.section.trim()) 
+        }
 
         return grouped.map { (key, records) ->
-            val (studentName, subject, section) = key
+            val gradeLevel = key.getOrElse(0) { "" }
+            val studentName = key.getOrElse(1) { "" }
+            val subject = key.getOrElse(2) { "" }
+            val section = key.getOrElse(3) { "" }
             val sortedRecords = records.sortedBy { it.month }
             var m1Record = records.find { it.month.contains("الأول") || it.month.contains("1") || it.month.contains("محرم") }
             var m2Record = records.find { it.month.contains("الثاني") || it.month.contains("2") || it.month.contains("صفر") }
@@ -208,6 +228,7 @@ class GradeViewModel(
 
             StudentSemesterOutcome(
                 studentName = studentName,
+                gradeLevel = gradeLevel,
                 section = section,
                 subject = subject,
                 semester = semester,
@@ -216,28 +237,33 @@ class GradeViewModel(
                 month3 = m3Summary,
                 extraMonths = extraSummaries
             )
-        }.sortedWith(compareBy({ it.subject }, { it.studentName }))
+        }.sortedWith(compareBy({ it.gradeLevel }, { it.subject }, { it.studentName }))
     }
 
-    // Calculate Final Outcomes (الفصل الأول + الفصل الثاني) - strictly separated by Subject
+    // Calculate Final Outcomes (الفصل الأول + الفصل الثاني) - strictly separated by GradeLevel + Subject
     fun getFinalOutcomes(allGrades: List<StudentGradeEntity>): List<StudentFinalOutcome> {
         val sem1Outcomes = getSemesterOutcomes(allGrades, 1)
         val sem2Outcomes = getSemesterOutcomes(allGrades, 2)
 
-        val allKeys = (sem1Outcomes.map { Triple(it.studentName, it.subject, it.section) } +
-                sem2Outcomes.map { Triple(it.studentName, it.subject, it.section) }).distinct()
+        val allKeys = (sem1Outcomes.map { listOf(it.gradeLevel, it.studentName, it.subject, it.section) } +
+                sem2Outcomes.map { listOf(it.gradeLevel, it.studentName, it.subject, it.section) }).distinct()
 
-        return allKeys.map { (name, subj, sec) ->
-            val s1 = sem1Outcomes.find { it.studentName == name && it.subject == subj && it.section == sec }
-            val s2 = sem2Outcomes.find { it.studentName == name && it.subject == subj && it.section == sec }
+        return allKeys.map { key ->
+            val gradeLevel = key[0]
+            val name = key[1]
+            val subj = key[2]
+            val sec = key[3]
+            val s1 = sem1Outcomes.find { it.gradeLevel == gradeLevel && it.studentName == name && it.subject == subj && it.section == sec }
+            val s2 = sem2Outcomes.find { it.gradeLevel == gradeLevel && it.studentName == name && it.subject == subj && it.section == sec }
             StudentFinalOutcome(
                 studentName = name,
+                gradeLevel = gradeLevel,
                 section = sec,
                 subject = subj,
                 sem1Data = s1,
                 sem2Data = s2
             )
-        }.sortedWith(compareBy({ it.subject }, { it.studentName }))
+        }.sortedWith(compareBy({ it.gradeLevel }, { it.subject }, { it.studentName }))
     }
 
     fun navigateTo(screenId: Int) {
@@ -245,6 +271,7 @@ class GradeViewModel(
     }
 
     fun selectGradeLevelAndOpenSemester(gradeLevel: String, semester: Int) {
+        _selectedGradeLevel.value = gradeLevel
         val currentInfo = schoolInfo.value
         val updatedInfo = currentInfo.copy(gradeLevels = gradeLevel)
         repository.saveSchoolInfo(updatedInfo)
@@ -375,6 +402,7 @@ class GradeViewModel(
 
             val entity = StudentGradeEntity(
                 id = id,
+                gradeLevel = _selectedGradeLevel.value,
                 semester = sem,
                 month = _selectedMonth.value,
                 section = _selectedSection.value,
@@ -436,6 +464,7 @@ class GradeViewModel(
             val newEntities = distinctNames.map { (name, _) ->
                 StudentGradeEntity(
                     id = 0L,
+                    gradeLevel = _selectedGradeLevel.value,
                     semester = sem,
                     month = _selectedMonth.value,
                     section = _selectedSection.value,
@@ -474,7 +503,7 @@ class GradeViewModel(
     fun deleteStudent(student: StudentGradeEntity) {
         viewModelScope.launch {
             repository.deleteStudent(student)
-            _userMessage.emit("تم حذف الطالب ${student.studentName}")
+            _userMessage.emit("تم حذف الطالب (${student.studentName}) بالكامل مع درجاته")
         }
     }
 
@@ -542,6 +571,7 @@ class GradeViewModel(
         viewModelScope.launch {
             val all = allDatabaseStudents.value
             val filtered = all.filter {
+                it.gradeLevel == gradeLevel &&
                 it.semester == semester &&
                 it.subject == subject &&
                 it.month == month &&
@@ -552,11 +582,15 @@ class GradeViewModel(
                 filtered
             } else {
                 // If not yet populated for this exact subject/month, copy roster of students in that semester
-                val roster = all.filter { it.semester == semester && (section.isBlank() || it.section == section) }
-                    .distinctBy { it.studentName }
+                val roster = all.filter { 
+                    it.gradeLevel == gradeLevel &&
+                    it.semester == semester && 
+                    (section.isBlank() || it.section == section) 
+                }.distinctBy { it.studentName }
                 if (roster.isNotEmpty()) {
                     roster.mapIndexed { idx, st ->
                         StudentGradeEntity(
+                            gradeLevel = gradeLevel,
                             semester = semester,
                             month = month,
                             section = if (section.isNotBlank()) section else st.section,
